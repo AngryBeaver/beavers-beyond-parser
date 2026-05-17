@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["dom", "esnext"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "allowJs": true,
+    "types": ["jquery", "@league-of-foundry-developers/foundry-vtt-types"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}
