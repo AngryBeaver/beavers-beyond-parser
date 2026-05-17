@@ -1,69 +1,24 @@
 <form class="bbp-form">
 
-  <section class="bbp-section">
-    <h3>Adventure URL</h3>
-    <div class="form-group">
-      <label>D&amp;D Beyond adventure URL</label>
-      <div class="form-fields">
-        <input type="url" class="bbp-url-input"
-          placeholder="https://www.dndbeyond.com/sources/cm" />
-        <button type="button" data-action="fetch">Fetch</button>
-      </div>
-      <p class="notes">
-        Requires the proxy container running on <code>{{proxyUrl}}</code>.
-        See module settings to change the URL.
-      </p>
-    </div>
-  </section>
-
-  <section class="bbp-section">
-    <h3>Or paste page HTML</h3>
-    <div class="form-group">
-      <div class="form-fields bbp-paste-row">
-        <textarea class="bbp-paste-area" rows="4"
-          placeholder="Open D&amp;D Beyond → View Source (Ctrl+U) → select all → paste here."></textarea>
-      </div>
-      <div class="form-fields">
-        <button type="button" data-action="parsePaste" class="bbp-full-btn">Parse pasted HTML</button>
-      </div>
-    </div>
-  </section>
+  {{#if proxyAvailable}}
+  <div class="form-group">
+    <label>D&amp;D Beyond Adventure URL</label>
+    <input type="url" class="bbp-url-input"
+      placeholder="https://www.dndbeyond.com/sources/cm">
+  </div>
+  {{else}}
+  <div class="bbp-info-box">
+    <i class="fa-solid fa-circle-info"></i>
+    To import by URL, start the proxy container on <code>{{proxyUrl}}</code>.
+  </div>
+  {{/if}}
 
   <p class="bbp-status">—</p>
 
-  {{#if adventure}}
-  <section class="bbp-section bbp-preview">
-    <h3>{{adventure.title}}</h3>
-    {{#if adventure.description}}<p class="bbp-description">{{adventure.description}}</p>{{/if}}
-    <ul class="bbp-chapter-list">
-      {{#each chapterStatuses}}
-      <li class="{{#if this.done}}bbp-chapter-done{{/if}}">
-        {{#if this.done}}
-          <i class="fas fa-check"></i>
-        {{else}}
-          <i class="fas fa-circle"></i>
-        {{/if}}
-        <a href="{{this.url}}" target="_blank">{{this.title}}</a>
-      </li>
-      {{/each}}
-    </ul>
-    <div class="form-group">
-      <p class="notes">
-        Import uses the proxy to fetch all chapters automatically.
-        Or paste a chapter manually to add it without the proxy:
-      </p>
-      <div class="form-fields bbp-paste-row">
-        <textarea class="bbp-chapter-paste" rows="3"
-          placeholder="Paste a chapter page HTML here…"></textarea>
-      </div>
-      <div class="form-fields">
-        <button type="button" data-action="addChapter" class="bbp-full-btn">Add Chapter</button>
-      </div>
-    </div>
-    <button type="button" data-action="import" class="bbp-import-btn">
-      <i class="fas fa-file-import"></i> Import to Foundry
-    </button>
-  </section>
+  {{#if proxyAvailable}}
+  <button type="button" data-action="import" class="bbp-full-btn">
+    <i class="fas fa-file-import"></i> Import Adventure
+  </button>
   {{/if}}
 
 </form>

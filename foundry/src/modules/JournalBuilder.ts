@@ -10,6 +10,7 @@ export class JournalBuilder {
     adventureTitle: string,
     chapters: ParsedChapter[],
     monsterPathToActorId: Map<string, string>,
+    spellNameToItemId: Map<string, string> = new Map(),
   ): Promise<void> {
     const folder = (await Folder.create({
       name: adventureTitle,
@@ -56,7 +57,7 @@ export class JournalBuilder {
         type: 'text',
         sort: (i + 1) * 100,
         text: {
-          content: rewriteLinks(page.content, slugToData, monsterPathToActorId),
+          content: rewriteLinks(page.content, slugToData, monsterPathToActorId, spellNameToItemId),
           format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML,
         },
       }));
@@ -75,8 +76,10 @@ function rewriteLinks(
   html: string,
   slugToData: Map<string, JournalData>,
   monsterPathToActorId: Map<string, string>,
+  spellNameToItemId: Map<string, string>,
 ): string {
-  if (slugToData.size === 0 && monsterPathToActorId.size === 0) return html;
+  if (slugToData.size === 0 && monsterPathToActorId.size === 0 && spellNameToItemId.size === 0)
+    return html;
   const doc = new DOMParser().parseFromString(html, 'text/html');
   let changed = false;
 
@@ -110,6 +113,21 @@ function rewriteLinks(
       const actorId = monsterPathToActorId.get(pathname);
       if (actorId) {
         a.replaceWith(doc.createTextNode(`@UUID[Actor.${actorId}]{${text}}`));
+        changed = true;
+      }
+      continue;
+    }
+
+    // Spell links: /spells/123-fire-bolt or /spells/fire-bolt
+    if (pathname.includes('/spells/')) {
+      const slug = pathname.split('/').filter(Boolean).pop() ?? '';
+      // Strip numeric prefix ("2102-fire-bolt" → "fire bolt") then try name fallback
+      const nameFromSlug = slug.replace(/^\d+-/, '').replace(/-/g, ' ');
+      const itemId =
+        spellNameToItemId.get(nameFromSlug.toLowerCase()) ??
+        spellNameToItemId.get(text.toLowerCase());
+      if (itemId) {
+        a.replaceWith(doc.createTextNode(`@UUID[Item.${itemId}]{${text}}`));
         changed = true;
       }
       continue;

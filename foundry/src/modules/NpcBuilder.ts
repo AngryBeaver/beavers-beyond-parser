@@ -1,5 +1,4 @@
-import { ParsedChapter, ParsedSpell, ParsedStatBlock } from '../types.js';
-import { StatBlockParser } from './StatBlockParser.js';
+import { ParsedChapter, ParsedStatBlock } from '../types.js';
 import { ItemBuilder } from './ItemBuilder.js';
 
 // ── Mapping tables ────────────────────────────────────────────────────────────
@@ -85,7 +84,6 @@ const SKILL_MAP: Record<string, { key: string; ability: string }> = {
   survival: { key: 'sur', ability: 'wis' },
 };
 
-// Section headings → dnd5e activation type
 const SECTION_ACTIVATION: Record<string, string> = {
   actions: 'action',
   'bonus actions': 'bonus',
@@ -98,13 +96,29 @@ const SECTION_ACTIVATION: Record<string, string> = {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export class NpcBuilder {
+  /**
+   * Build all NPCs for an adventure.
+   * Phase 1: import every spell referenced across all stat blocks into
+   *          "Items > dndBeyond > Spells" (deduplication built-in).
+   * Phase 2: create Actor documents with embedded items sourced from those
+   *          world items.
+   * Returns both ID maps so callers can rewrite journal + spell links.
+   */
   static async build(
     adventureTitle: string,
     chapters: ParsedChapter[],
     doc?: Document,
-  ): Promise<Map<string, string>> {
+  ): Promise<{ monsterPathToActorId: Map<string, string>; spellNameToItemId: Map<string, string> }> {
     const monsterPathToActorId = new Map<string, string>();
-    if (!chapters.some((c) => c.statBlocks.length > 0)) return monsterPathToActorId;
+    const emptySpellMap = new Map<string, string>();
+
+    if (!chapters.some((c) => c.statBlocks.length > 0)) {
+      return { monsterPathToActorId, spellNameToItemId: emptySpellMap };
+    }
+
+    // Phase 1 — import all spells across every chapter up front
+    const allStatBlocks = chapters.flatMap((c) => c.statBlocks);
+    const { spellNameToItemId } = await ItemBuilder.importAllSpells(allStatBlocks, doc);
 
     const adventureFolder = (await Folder.create({
       name: adventureTitle,
@@ -112,9 +126,7 @@ export class NpcBuilder {
       color: '#5b4a2e',
     })) as Folder;
 
-    const spellData = doc ? StatBlockParser.extractSpellData(doc) : new Map<string, ParsedSpell>();
-    const getSpellFolder = ItemBuilder.makeSpellFolderGetter(adventureTitle);
-
+    // Phase 2 — create actors
     let count = 0;
     for (let i = 0; i < chapters.length; i++) {
       const chapter = chapters[i];
@@ -128,7 +140,7 @@ export class NpcBuilder {
 
       for (const sb of chapter.statBlocks) {
         const actor = (await Actor.create(
-          (await buildActorData(sb, chapterFolder?.id ?? null, spellData, getSpellFolder)) as any,
+          buildActorData(sb, chapterFolder?.id ?? null, spellNameToItemId) as any,
         )) as Actor | null | undefined;
         if (actor?.id && sb.monsterHref) {
           monsterPathToActorId.set(sb.monsterHref, actor.id);
@@ -140,14 +152,13 @@ export class NpcBuilder {
     if (count > 0) {
       ui.notifications?.info(`Created ${count} NPC(s) in Actors → "${adventureTitle}".`);
     }
-    return monsterPathToActorId;
+    return { monsterPathToActorId, spellNameToItemId };
   }
 
   static async createSingle(sb: ParsedStatBlock, doc?: Document): Promise<void> {
-    const spellData = doc ? StatBlockParser.extractSpellData(doc) : new Map<string, ParsedSpell>();
-    const getSpellFolder = ItemBuilder.makeSpellFolderGetter('Imported');
+    const { spellNameToItemId } = await ItemBuilder.importAllSpells([sb], doc);
     const actor = (await Actor.create(
-      (await buildActorData(sb, null, spellData, getSpellFolder)) as any,
+      buildActorData(sb, null, spellNameToItemId) as any,
     )) as Actor | null | undefined;
     if (actor) {
       ui.notifications?.info(`Created NPC "${sb.name}".`);
@@ -157,17 +168,16 @@ export class NpcBuilder {
 
 // ── Actor data builder ────────────────────────────────────────────────────────
 
-async function buildActorData(
+function buildActorData(
   sb: ParsedStatBlock,
   folderId: string | null,
-  spellData: Map<string, ParsedSpell>,
-  getSpellFolder: () => Promise<string | null>,
-): Promise<Record<string, unknown>> {
+  spellNameToItemId: Map<string, string>,
+): Record<string, unknown> {
   const movement = parseMovement(sb.speed);
   const senses = parseSenses(sb);
   const traits = parseTraits(sb);
   const skills = parseSkills(sb);
-  const items = await buildItems(sb, spellData, getSpellFolder);
+  const items = buildItems(sb, spellNameToItemId);
 
   return {
     name: sb.name,
@@ -208,11 +218,10 @@ async function buildActorData(
 
 // ── Items ─────────────────────────────────────────────────────────────────────
 
-async function buildItems(
+function buildItems(
   sb: ParsedStatBlock,
-  spellData: Map<string, ParsedSpell>,
-  getSpellFolder: () => Promise<string | null>,
-): Promise<Record<string, unknown>[]> {
+  spellNameToItemId: Map<string, string>,
+): Record<string, unknown>[] {
   const items: Record<string, unknown>[] = [];
 
   for (const section of sb.sections) {
@@ -221,27 +230,19 @@ async function buildItems(
     const isPassive = !activationType && headingLower !== 'actions';
 
     for (const entryHtml of section.entries) {
-      const built = await buildItemsFromEntry(
-        entryHtml,
-        activationType,
-        isPassive,
-        spellData,
-        getSpellFolder,
-      );
-      items.push(...built);
+      items.push(...buildItemsFromEntry(entryHtml, activationType, isPassive, spellNameToItemId));
     }
   }
 
   return items;
 }
 
-async function buildItemsFromEntry(
+function buildItemsFromEntry(
   entryHtml: string,
   activationType: string | null,
   isPassive: boolean,
-  spellData: Map<string, ParsedSpell>,
-  getSpellFolder: () => Promise<string | null>,
-): Promise<Record<string, unknown>[]> {
+  spellNameToItemId: Map<string, string>,
+): Record<string, unknown>[] {
   const scratch = new DOMParser().parseFromString(`<p>${entryHtml}</p>`, 'text/html');
   const text = scratch.body.textContent ?? '';
 
@@ -251,30 +252,24 @@ async function buildItemsFromEntry(
 
   const descHtml = `<p>${entryHtml}</p>`;
 
-  // Melee/Ranged Spell Attack — try compendium first, fall back to weapon-type spell item
+  // Spell attacks — source from pre-imported world item, fall back to weapon-type
   const isMeleeSpell = /melee\s+spell\s+attack/i.test(text);
   const isRangedSpell = /ranged\s+spell\s+attack/i.test(text);
   if (isMeleeSpell || isRangedSpell) {
     const cleanName = name.replace(/\s*\(cantrip\)/i, '').trim();
-    const compendiumSpell = await ItemBuilder.resolveSpellForActor(
-      cleanName,
-      'atwill',
-      0,
-      spellData,
-      getSpellFolder,
-    );
-    if (compendiumSpell) return [compendiumSpell];
+    const spellItem = ItemBuilder.getSpellForActor(cleanName, 'atwill', 0, spellNameToItemId);
+    if (spellItem) return [spellItem];
     return [buildSpellAttackItem(name, text, descHtml, isMeleeSpell)];
   }
 
-  // Melee/Ranged Weapon Attack
+  // Weapon attacks
   const isMelee = /melee\s+weapon\s+attack/i.test(text);
   const isRanged = /ranged\s+weapon\s+attack/i.test(text);
   if (isMelee || isRanged) {
     return [buildWeaponItem(name, text, descHtml, isMelee)];
   }
 
-  // Spellcasting entry with "At will:" / "N/day each:" lists
+  // Spellcasting feature — keep the feat item + add each spell from world items
   const spellLists = ItemBuilder.parseSpellLists(text);
   if (spellLists.length > 0) {
     const result: Record<string, unknown>[] = [];
@@ -284,13 +279,7 @@ async function buildItemsFromEntry(
       for (const spellName of spells) {
         if (seen.has(spellName)) continue;
         seen.add(spellName);
-        const spellItem = await ItemBuilder.resolveSpellForActor(
-          spellName,
-          method,
-          limit,
-          spellData,
-          getSpellFolder,
-        );
+        const spellItem = ItemBuilder.getSpellForActor(spellName, method, limit, spellNameToItemId);
         if (spellItem) result.push(spellItem);
       }
     }
@@ -300,7 +289,7 @@ async function buildItemsFromEntry(
   return [buildFeatItem(name, descHtml, activationType, isPassive)];
 }
 
-// ── Spell attack item (fallback when not in compendium) ───────────────────────
+// ── Spell attack fallback item ────────────────────────────────────────────────
 
 function buildSpellAttackItem(
   name: string,

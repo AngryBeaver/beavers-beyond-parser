@@ -46,7 +46,7 @@ Hooks.on('renderJournalDirectory', (_app: unknown, html: unknown) => {
   actionButtons.appendChild(btn);
 });
 
-// "Import Spells" button in the Items sidebar header
+// "Import Items" button in the Items sidebar header
 Hooks.on('renderItemDirectory', (_app: unknown, html: unknown) => {
   if (!game.user?.isGM) return;
   const root = html instanceof HTMLElement ? html : (html as any)?.[0];
@@ -55,7 +55,7 @@ Hooks.on('renderItemDirectory', (_app: unknown, html: unknown) => {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.classList.add('bbp-item-import');
-  btn.innerHTML = '<i class="fa-solid fa-hat-wizard"></i><span>Import Spells</span>';
+  btn.innerHTML = '<i class="fa-solid fa-hat-wizard"></i><span>Import Items</span>';
   btn.addEventListener('click', () => ImportItemWindow.open());
   actionButtons.appendChild(btn);
 });

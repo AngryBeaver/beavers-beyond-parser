@@ -1,5 +1,7 @@
-import { NAMESPACE } from '../definitions.js';
+import { NAMESPACE, SETTINGS } from '../definitions.js';
+import { BeyondFetcher } from '../modules/BeyondFetcher.js';
 import { StatBlockParser } from '../modules/StatBlockParser.js';
+import { SpellParser } from '../modules/SpellParser.js';
 import { ItemBuilder } from '../modules/ItemBuilder.js';
 
 export class ImportItemWindow extends (foundry.applications.api.HandlebarsApplicationMixin(
@@ -7,8 +9,8 @@ export class ImportItemWindow extends (foundry.applications.api.HandlebarsApplic
 ) as any) {
   static DEFAULT_OPTIONS = {
     id: 'beavers-beyond-item',
-    window: { title: 'Import Spells from D&D Beyond', resizable: true },
-    position: { width: 480, height: 360 },
+    window: { title: 'Import Items from D&D Beyond', resizable: true },
+    position: { width: 480, height: 420 },
     actions: {
       import: ImportItemWindow._onImport,
     },
@@ -28,8 +30,28 @@ export class ImportItemWindow extends (foundry.applications.api.HandlebarsApplic
   }
 
   async _prepareContext(_options: object): Promise<object> {
-    return {};
+    const proxyUrl = ((game.settings.get(NAMESPACE, SETTINGS.PROXY_URL) ?? '') as string).replace(
+      /\/$/,
+      '',
+    );
+
+    let proxyAvailable = false;
+    if (proxyUrl) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2000);
+      try {
+        const resp = await fetch(`${proxyUrl}/health`, { signal: controller.signal });
+        proxyAvailable = resp.ok;
+      } catch {
+        proxyAvailable = false;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    return { proxyUrl, proxyAvailable };
   }
+
 
   async close(options?: object): Promise<this> {
     ImportItemWindow._instance = null;
@@ -42,17 +64,61 @@ export class ImportItemWindow extends (foundry.applications.api.HandlebarsApplic
   }
 
   static async _onImport(this: ImportItemWindow): Promise<void> {
-    const raw = (this.element.querySelector('.bbp-paste-area') as HTMLTextAreaElement).value.trim();
-    const campaignName =
-      (this.element.querySelector('.bbp-folder-input') as HTMLInputElement).value.trim() ||
-      'Imported';
+    const url = (
+      this.element.querySelector('.bbp-url-input') as HTMLInputElement
+    ).value.trim();
+    const raw = (
+      this.element.querySelector('.bbp-paste-area') as HTMLTextAreaElement
+    ).value.trim();
 
-    if (!raw) {
+    if (!url && !raw) {
       return void ui.notifications?.warn(
-        'Paste stat block HTML containing spellcasting sections first.',
+        'Enter a D&D Beyond spell URL or paste stat block HTML first.',
       );
     }
 
+    // ── URL mode ──────────────────────────────────────────────────────────────
+    if (url) {
+      this._setStatus('Importing spell…');
+      try {
+        const slug = url.split('/').filter(Boolean).pop() ?? '';
+        const nameFromSlug = slug
+          .replace(/^\d+-/, '')
+          .replace(/-/g, ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+
+        const proxyUrl = (
+          (game.settings.get(NAMESPACE, SETTINGS.PROXY_URL) ?? '') as string
+        ).replace(/\/$/, '');
+
+        let parsed = undefined;
+        if (proxyUrl) {
+          try {
+            const html = await BeyondFetcher.fetchPage(url);
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            parsed = SpellParser.parseSpellPage(doc, nameFromSlug);
+          } catch {
+            // proxy failed — fall back to compendium/stub
+          }
+        }
+
+        const { id, isNew } = await ItemBuilder.importSpellByName(nameFromSlug, parsed);
+        if (!id) {
+          this._setStatus('Failed to import spell.');
+        } else {
+          this._setStatus(
+            isNew
+              ? `Done — "${nameFromSlug}" added to Items → dndBeyond → Spells.`
+              : `"${nameFromSlug}" already exists — no duplicate created.`,
+          );
+        }
+      } catch (err: any) {
+        this._setStatus(`Error: ${err.message}`);
+      }
+      return;
+    }
+
+    // ── HTML paste mode ───────────────────────────────────────────────────────
     this._setStatus('Parsing…');
     try {
       const doc = new DOMParser().parseFromString(raw, 'text/html');
@@ -62,15 +128,15 @@ export class ImportItemWindow extends (foundry.applications.api.HandlebarsApplic
       }
 
       this._setStatus('Importing spells…');
-      const { found, created } = await ItemBuilder.importSpellsFromDoc(doc, campaignName);
+      const { created, reused } = await ItemBuilder.importSpellsFromDoc(doc);
 
-      const total = found + created;
+      const total = created + reused;
       if (total === 0) {
         this._setStatus('No spellcasting sections found.');
       } else {
         const parts: string[] = [];
-        if (found > 0) parts.push(`${found} from compendium`);
-        if (created > 0) parts.push(`${created} created in Items → ${campaignName} → Spells`);
+        if (created > 0) parts.push(`${created} new spell(s) added to Items → dndBeyond → Spells`);
+        if (reused > 0) parts.push(`${reused} already existed`);
         this._setStatus(`Done — ${parts.join(', ')}.`);
       }
     } catch (err: any) {

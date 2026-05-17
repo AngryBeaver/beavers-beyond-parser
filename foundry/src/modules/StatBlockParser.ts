@@ -1,4 +1,4 @@
-import { ParsedSpell, ParsedStatBlock } from '../types.js';
+import { ParsedStatBlock } from '../types.js';
 
 const CORE_STAT_LABELS = new Set(['Armor Class', 'Hit Points', 'Speed']);
 
@@ -29,68 +29,6 @@ export class StatBlockParser {
     }
 
     return results;
-  }
-
-  static extractSpellData(doc: Document): Map<string, ParsedSpell> {
-    const result = new Map<string, ParsedSpell>();
-
-    const SCHOOL_MAP: Record<string, string> = {
-      abjuration: 'abj',
-      conjuration: 'con',
-      divination: 'div',
-      enchantment: 'enc',
-      evocation: 'evo',
-      illusion: 'ill',
-      necromancy: 'nec',
-      transmutation: 'trs',
-    };
-
-    for (const container of Array.from(
-      doc.querySelectorAll<HTMLElement>('.more-info.details-more-info'),
-    )) {
-      const spellEl = container.querySelector<HTMLElement>('.ddb-statblock-spell');
-      if (!spellEl) continue;
-
-      const name =
-        container.querySelector<HTMLImageElement>('img.spell-image')?.getAttribute('alt')?.trim() ??
-        container.querySelector('.more-info-title')?.textContent?.trim() ??
-        '';
-      if (!name) continue;
-
-      const getVal = (cls: string) =>
-        spellEl
-          .querySelector<HTMLElement>(`.ddb-statblock-item-${cls} .ddb-statblock-item-value`)
-          ?.textContent?.trim() ?? '';
-
-      const levelText = getVal('level');
-      const level = /cantrip/i.test(levelText) ? 0 : parseInt(levelText) || 0;
-      const school = SCHOOL_MAP[getVal('school').toLowerCase()] ?? 'evo';
-
-      const compText = getVal('components');
-      const components: string[] = [];
-      if (/\bV\b/.test(compText)) components.push('vocal');
-      if (/\bS\b/.test(compText)) components.push('somatic');
-      if (/\bM\b/.test(compText)) components.push('material');
-
-      const description = Array.from(
-        container.querySelectorAll<HTMLElement>('.more-info-content p'),
-      )
-        .map((p) => `<p>${p.innerHTML}</p>`)
-        .join('\n');
-
-      result.set(name.toLowerCase(), {
-        name,
-        level,
-        school,
-        castingTime: getVal('casting-time'),
-        range: getVal('range-area'),
-        components,
-        duration: getVal('duration'),
-        description,
-      });
-    }
-
-    return result;
   }
 
   static parse(el: HTMLElement): ParsedStatBlock | null {

@@ -1,23 +1,29 @@
 <form class="bbp-form">
 
+  {{#if proxyAvailable}}
   <div class="form-group">
-    <label>Stat Block HTML</label>
-    <textarea class="bbp-paste-area" rows="7"
-      placeholder="Paste D&amp;D Beyond stat block HTML containing spellcasting sections…"></textarea>
-    <p class="notes">Spells are looked up in your compendiums. Any not found are created as world items.</p>
+    <label>D&amp;D Beyond Item URL</label>
+    <input type="url" class="bbp-url-input"
+      placeholder="https://www.dndbeyond.com/spells/2187-mending">
   </div>
+  {{else}}
+  <div class="bbp-info-box">
+    <i class="fa-solid fa-circle-info"></i>
+    To import by URL, start the proxy container on <code>{{proxyUrl}}</code>.
+  </div>
+  {{/if}}
 
   <div class="form-group">
-    <label>Folder Name</label>
-    <input type="text" class="bbp-folder-input bbp-full-input" value="Imported"
-      placeholder="Imported">
-    <p class="notes">World-item stubs go into Items → [Folder Name] → Spells.</p>
+    <label>Stat Block HTML</label>
+    <textarea class="bbp-paste-area" rows="8"
+      placeholder="Paste D&amp;D Beyond stat block HTML here…"></textarea>
+    <p class="notes">You can optionally paste the HTML instead of a D&amp;D Beyond URL.</p>
   </div>
 
   <p class="bbp-status">—</p>
 
   <button type="button" data-action="import" class="bbp-full-btn">
-    <i class="fa-solid fa-hat-wizard"></i> Import Spells
+    <i class="fa-solid fa-hat-wizard"></i> Import Items
   </button>
 
 </form>

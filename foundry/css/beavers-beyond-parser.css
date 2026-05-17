@@ -9,31 +9,9 @@
   gap: 10px;
 }
 
-#beavers-beyond-parser .bbp-section {
-  border: 1px solid var(--color-border-light-tertiary, #ccc);
-  border-radius: 4px;
-  padding: 8px 12px 10px;
-}
-
-#beavers-beyond-parser .bbp-section h3 {
-  margin: 0 0 8px;
-  font-size: 0.85em;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-dark-secondary, #666);
-  border-bottom: 1px solid var(--color-border-light-tertiary, #ddd);
-  padding-bottom: 4px;
-}
-
-#beavers-beyond-parser .bbp-paste-row {
-  margin-bottom: 6px;
-}
-
-#beavers-beyond-parser .bbp-paste-area {
+#beavers-beyond-parser .bbp-url-input {
   width: 100%;
-  font-size: 0.72em;
-  font-family: monospace;
-  resize: vertical;
+  box-sizing: border-box;
 }
 
 #beavers-beyond-parser .bbp-full-btn {
@@ -98,36 +76,6 @@
   padding: 0 4px;
 }
 
-#beavers-beyond-parser .bbp-description {
-  font-size: 0.85em;
-  color: var(--color-text-dark-secondary, #555);
-  margin: 0 0 6px;
-}
-
-#beavers-beyond-parser .bbp-chapter-list {
-  margin: 4px 0 10px;
-  padding-left: 1.4em;
-  max-height: 130px;
-  overflow-y: auto;
-  font-size: 0.88em;
-}
-
-#beavers-beyond-parser .bbp-chapter-list li {
-  display: flex;
-  justify-content: space-between;
-  padding: 2px 0;
-}
-
-#beavers-beyond-parser .bbp-count {
-  color: var(--color-text-dark-secondary, #888);
-  font-size: 0.9em;
-}
-
-#beavers-beyond-parser .bbp-import-btn {
-  width: 100%;
-  font-size: 1em;
-}
-
 /* ── Import Items window ────────────────────────────────────────────────────── */
 
 #beavers-beyond-item .bbp-form {
@@ -136,8 +84,8 @@
   gap: 10px;
 }
 
-#beavers-beyond-item .bbp-paste-area,
-#beavers-beyond-item .bbp-full-input {
+#beavers-beyond-item .bbp-url-input,
+#beavers-beyond-item .bbp-paste-area {
   width: 100%;
   box-sizing: border-box;
 }
