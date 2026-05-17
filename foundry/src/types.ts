@@ -1,0 +1,53 @@
+export interface ParsedAdventure {
+  title: string;
+  url: string;
+  description: string;
+  chapterStubs: ChapterStub[];
+}
+
+export interface ChapterStub {
+  title: string;
+  url: string;
+}
+
+export interface ParsedChapter {
+  title: string;
+  slug: string;
+  pages: ParsedPage[];
+  statBlocks: ParsedStatBlock[];
+}
+
+export interface ParsedPage {
+  name: string;
+  content: string;
+}
+
+export interface ParsedStatBlock {
+  name: string;
+  meta: string;
+  monsterHref: string;
+  ac: number;
+  acNote: string;
+  hp: number;
+  hpFormula: string;
+  speed: string;
+  abilities: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
+  cr: string;
+  xp: number;
+  profBonus: string;
+  data: Array<{ label: string; value: string }>;
+  sections: Array<{ heading: string; entries: string[] }>;
+  imageUrl: string;
+  cleanHtml: string;
+}
+
+export interface ParsedSpell {
+  name: string;
+  level: number;
+  school: string;
+  castingTime: string;
+  range: string;
+  components: string[];
+  duration: string;
+  description: string;
+}

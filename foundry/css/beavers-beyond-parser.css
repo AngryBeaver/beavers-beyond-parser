@@ -1,0 +1,251 @@
+#beavers-beyond-parser .window-content {
+  padding: 8px;
+  overflow-y: auto;
+}
+
+#beavers-beyond-parser .bbp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#beavers-beyond-parser .bbp-section {
+  border: 1px solid var(--color-border-light-tertiary, #ccc);
+  border-radius: 4px;
+  padding: 8px 12px 10px;
+}
+
+#beavers-beyond-parser .bbp-section h3 {
+  margin: 0 0 8px;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-dark-secondary, #666);
+  border-bottom: 1px solid var(--color-border-light-tertiary, #ddd);
+  padding-bottom: 4px;
+}
+
+#beavers-beyond-parser .bbp-paste-row {
+  margin-bottom: 6px;
+}
+
+#beavers-beyond-parser .bbp-paste-area {
+  width: 100%;
+  font-size: 0.72em;
+  font-family: monospace;
+  resize: vertical;
+}
+
+#beavers-beyond-parser .bbp-full-btn {
+  width: 100%;
+}
+
+/* ── Import Monster window ──────────────────────────────────────────────────── */
+
+#beavers-beyond-monster .bbp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#beavers-beyond-monster .bbp-url-input,
+#beavers-beyond-monster .bbp-paste-area {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#beavers-beyond-monster .bbp-paste-area {
+  font-size: 0.72em;
+  font-family: monospace;
+  resize: vertical;
+}
+
+#beavers-beyond-monster .bbp-full-btn {
+  width: 100%;
+}
+
+#beavers-beyond-monster .bbp-status {
+  font-style: italic;
+  font-size: 0.85em;
+  color: var(--color-text-dark-secondary, #666);
+  margin: 0;
+  padding: 0 4px;
+}
+
+.bbp-info-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #dbeafe;
+  border: 1px solid #3b82f6;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.85em;
+  color: #1d4ed8;
+  line-height: 1.4;
+}
+
+.bbp-info-box i {
+  flex-shrink: 0;
+  font-size: 1.1em;
+}
+
+#beavers-beyond-parser .bbp-status {
+  font-style: italic;
+  font-size: 0.85em;
+  color: var(--color-text-dark-secondary, #666);
+  margin: 0;
+  padding: 0 4px;
+}
+
+#beavers-beyond-parser .bbp-description {
+  font-size: 0.85em;
+  color: var(--color-text-dark-secondary, #555);
+  margin: 0 0 6px;
+}
+
+#beavers-beyond-parser .bbp-chapter-list {
+  margin: 4px 0 10px;
+  padding-left: 1.4em;
+  max-height: 130px;
+  overflow-y: auto;
+  font-size: 0.88em;
+}
+
+#beavers-beyond-parser .bbp-chapter-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+#beavers-beyond-parser .bbp-count {
+  color: var(--color-text-dark-secondary, #888);
+  font-size: 0.9em;
+}
+
+#beavers-beyond-parser .bbp-import-btn {
+  width: 100%;
+  font-size: 1em;
+}
+
+/* ── Import Items window ────────────────────────────────────────────────────── */
+
+#beavers-beyond-item .bbp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#beavers-beyond-item .bbp-paste-area,
+#beavers-beyond-item .bbp-full-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#beavers-beyond-item .bbp-paste-area {
+  font-size: 0.72em;
+  font-family: monospace;
+  resize: vertical;
+}
+
+#beavers-beyond-item .bbp-full-btn {
+  width: 100%;
+}
+
+#beavers-beyond-item .bbp-status {
+  font-style: italic;
+  font-size: 0.85em;
+  color: var(--color-text-dark-secondary, #666);
+  margin: 0;
+  padding: 0 4px;
+}
+
+/* ── Stat Block (rendered inside journal pages) ─────── */
+.bbp-stat-block {
+  background: #fdf1dc;
+  color: #1a1a1a;
+  border: 2px solid #7a200d;
+  border-radius: 3px;
+  padding: 0.5em 0.75em 0.65em;
+  margin: 1em 0;
+  font-size: 0.88em;
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+.bbp-sb-portrait {
+  float: right;
+  max-width: 110px;
+  max-height: 150px;
+  object-fit: cover;
+  margin: 0 0 0.5em 0.75em;
+  border-radius: 3px;
+  border: 1px solid #7a200d;
+  background-color: #fdf1dc;
+}
+
+.bbp-sb-header {
+  border-bottom: 2px solid #7a200d;
+  padding-bottom: 0.25em;
+  margin-bottom: 0.3em;
+}
+
+.bbp-sb-name {
+  font-size: 1.25em;
+  font-weight: bold;
+  font-variant: small-caps;
+  color: #7a200d;
+  margin: 0;
+}
+
+.bbp-sb-meta {
+  font-style: italic;
+  color: #922524;
+  font-size: 0.9em;
+  margin: 0;
+}
+
+.bbp-sb-divider {
+  height: 6px;
+  background: linear-gradient(to right, #7a200d 70%, transparent 100%);
+  border: none;
+  margin: 0.4em 0;
+}
+
+.bbp-stat-block p {
+  margin: 0.1em 0;
+}
+
+.bbp-sb-abilities {
+  width: 100%;
+  text-align: center;
+  border-collapse: collapse;
+  margin: 0.25em 0;
+}
+
+.bbp-sb-abilities th {
+  color: #7a200d;
+  font-weight: bold;
+  font-size: 0.82em;
+  padding: 0 4px;
+}
+
+.bbp-sb-abilities td {
+  font-size: 0.9em;
+  padding: 0 4px;
+  line-height: 1.2;
+}
+
+.bbp-sb-abilities td span {
+  font-size: 0.88em;
+  color: #555;
+}
+
+.bbp-sb-section-heading {
+  font-variant: small-caps;
+  font-size: 1.1em;
+  color: #7a200d;
+  font-weight: normal;
+  border-bottom: 1px solid #7a200d;
+  margin: 0.5em 0 0.15em;
+}

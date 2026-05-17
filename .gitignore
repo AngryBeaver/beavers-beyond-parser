@@ -1,0 +1,6 @@
+node_modules/
+package/
+dist/
+.idea/
+.claude/
+**/.env

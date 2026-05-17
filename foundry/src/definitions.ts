@@ -1,5 +1,5 @@
 export const NAMESPACE = 'beavers-beyond-parser';
 
 export const SETTINGS = {
-  COBALT_TOKEN: 'cobaltToken',
+  PROXY_URL: 'proxyUrl',
 } as const;

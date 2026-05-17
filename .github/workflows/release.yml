@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.head_commit.message, 'release v')
+    outputs:
+      version: ${{ steps.version.outputs.num }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from commit message
+        id: version
+        run: |
+          MSG="${{ github.event.head_commit.message }}"
+          VERSION=$(echo "$MSG" | grep -oP 'v\d+\.\d+\.\d+')
+          if [ -z "$VERSION" ]; then
+            echo "Could not parse version from commit message: $MSG"
+            exit 1
+          fi
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
+          echo "num=${VERSION#v}" >> $GITHUB_OUTPUT
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: ./foundry
+        run: pnpm typecheck
+
+      - name: Bump version in module files
+        run: |
+          npm pkg set version=${{ steps.version.outputs.num }} --prefix foundry
+          npm pkg set version=${{ steps.version.outputs.num }} --prefix proxy-parser
+
+      - name: Build release zip
+        working-directory: ./foundry
+        run: pnpm release
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          make_latest: true
+          files: |
+            foundry/package/beavers-beyond-parser.zip
+            foundry/package/module.json
+
+  publish-docker:
+    runs-on: ubuntu-latest
+    needs: release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/beyond-parser:${{ needs.release.outputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/beyond-parser:latest

@@ -1,0 +1,95 @@
+import { NAMESPACE, SETTINGS } from '../definitions.js';
+import { BeyondFetcher } from '../modules/BeyondFetcher.js';
+import { StatBlockParser } from '../modules/StatBlockParser.js';
+import { NpcBuilder } from '../modules/NpcBuilder.js';
+
+export class ImportMonsterWindow extends (foundry.applications.api.HandlebarsApplicationMixin(
+  foundry.applications.api.ApplicationV2,
+) as any) {
+  static DEFAULT_OPTIONS = {
+    id: 'beavers-beyond-monster',
+    window: { title: 'Import Monster from D&D Beyond', resizable: true },
+    position: { width: 520, height: 380 },
+    actions: {
+      create: ImportMonsterWindow._onCreate,
+    },
+  };
+
+  static PARTS = {
+    main: { template: `modules/${NAMESPACE}/templates/import-monster-window.hbs` },
+  };
+
+  private static _instance: ImportMonsterWindow | null = null;
+
+  static open(): void {
+    if (!ImportMonsterWindow._instance) {
+      ImportMonsterWindow._instance = new ImportMonsterWindow();
+    }
+    void ImportMonsterWindow._instance.render({ force: true });
+  }
+
+  async _prepareContext(_options: object): Promise<object> {
+    const proxyUrl = ((game.settings.get(NAMESPACE, SETTINGS.PROXY_URL) ?? '') as string).replace(
+      /\/$/,
+      '',
+    );
+
+    let proxyAvailable = false;
+    if (proxyUrl) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2000);
+      try {
+        const resp = await fetch(`${proxyUrl}/health`, { signal: controller.signal });
+        proxyAvailable = resp.ok;
+      } catch {
+        proxyAvailable = false;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    return { proxyUrl, proxyAvailable };
+  }
+
+  async close(options?: object): Promise<this> {
+    ImportMonsterWindow._instance = null;
+    return super.close(options);
+  }
+
+  private _setStatus(msg: string): void {
+    const el = this.element?.querySelector('.bbp-status');
+    if (el) el.textContent = msg;
+  }
+
+  static async _onCreate(this: ImportMonsterWindow): Promise<void> {
+    const urlInput = this.element.querySelector('.bbp-url-input') as HTMLInputElement | null;
+    const url = urlInput?.value.trim() ?? '';
+    const raw = (this.element.querySelector('.bbp-paste-area') as HTMLTextAreaElement).value.trim();
+
+    if (!url && !raw) {
+      return void ui.notifications?.warn('Enter a D&D Beyond URL or paste stat block HTML first.');
+    }
+
+    this._setStatus(url ? 'Fetching…' : 'Parsing…');
+    try {
+      let html: string;
+      if (url) {
+        html = await BeyondFetcher.fetchPage(url);
+      } else {
+        html = raw;
+      }
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const statBlocks = StatBlockParser.extractAll(doc);
+      if (statBlocks.length === 0) {
+        return void this._setStatus('No stat blocks found.');
+      }
+      this._setStatus(`Creating ${statBlocks.length} actor(s)…`);
+      for (const sb of statBlocks) {
+        await NpcBuilder.createSingle(sb, doc);
+      }
+      this._setStatus(`Done — created ${statBlocks.length} actor(s).`);
+    } catch (err: any) {
+      this._setStatus(`Error: ${err.message}`);
+    }
+  }
+}
