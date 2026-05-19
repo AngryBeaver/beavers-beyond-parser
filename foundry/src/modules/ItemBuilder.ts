@@ -1,4 +1,5 @@
 import { ParsedSpell, ParsedStatBlock } from '../types.js';
+import { NAMESPACE, SETTINGS } from '../definitions.js';
 import { StatBlockParser } from './StatBlockParser.js';
 import { SpellParser } from './SpellParser.js';
 
@@ -36,25 +37,37 @@ export class ItemBuilder {
   }
 
   /**
-   * Build actor-embeddable item data for a spell that was already imported.
-   * Sources data from the world item (deduplicating), applies method / uses
-   * override, and sets flags.core.sourceId back to the world item.
-   *
-   * Synchronous — all world items must be imported first via importAllSpells.
+   * Build actor-embeddable item data for a spell.  The UUID stored in
+   * spellNameToItemId is either "Item.worldId" (world item) or a full
+   * compendium UUID "Compendium.pack.Item.id".  Both are loaded and cloned.
    */
-  static getSpellForActor(
+  static async getSpellForActor(
     spellName: string,
     method: string,
     limit: number,
     spellNameToItemId: Map<string, string>,
-  ): Record<string, unknown> | null {
-    const worldItemId = spellNameToItemId.get(spellName.toLowerCase());
-    if (!worldItemId) return null;
+  ): Promise<Record<string, unknown> | null> {
+    const uuid = spellNameToItemId.get(spellName.toLowerCase());
+    if (!uuid) return null;
 
-    const worldItem = (game.items as any)?.get(worldItemId) as any;
-    if (!worldItem) return null;
+    let data: any = null;
 
-    const data = JSON.parse(JSON.stringify(worldItem.toObject())) as any;
+    if (uuid.startsWith('Compendium.')) {
+      const parts = uuid.split('.');
+      const itemId = parts[parts.length - 1];
+      const packId = parts.slice(1, parts.length - 2).join('.');
+      const pack = (game.packs as any).get(packId);
+      if (!pack) return null;
+      const doc = (await pack.getDocument(itemId)) as any;
+      if (!doc) return null;
+      data = JSON.parse(JSON.stringify(doc.toObject()));
+    } else {
+      const worldItemId = uuid.includes('.') ? uuid.split('.').pop()! : uuid;
+      const worldItem = (game.items as any)?.get(worldItemId) as any;
+      if (!worldItem) return null;
+      data = JSON.parse(JSON.stringify(worldItem.toObject()));
+    }
+
     delete data._id;
     data.folder = null;
     data.system = data.system ?? {};
@@ -70,7 +83,7 @@ export class ItemBuilder {
     }
     data.flags = data.flags ?? {};
     data.flags.core = data.flags.core ?? {};
-    data.flags.core.sourceId = `Item.${worldItemId}`;
+    data.flags.core.sourceId = uuid;
     return data;
   }
 
@@ -107,9 +120,17 @@ async function importAllSpellsInternal(
   const register = async (name: string) => {
     if (seen.has(name)) return;
     seen.add(name);
+
+    // Check configured spell packs first — link directly, no world copy
+    const packUuid = await findSpellInPacks(name);
+    if (packUuid) {
+      spellNameToItemId.set(name, packUuid);
+      return;
+    }
+
     const { id, isNew } = await getOrCreateWorldSpellItem(name, spellData.get(name), folderId);
     if (id) {
-      spellNameToItemId.set(name, id);
+      spellNameToItemId.set(name, `Item.${id}`);
       if (isNew) created++;
       else reused++;
     }
@@ -130,7 +151,10 @@ async function importAllSpellsInternal(
         if (/(?:melee|ranged)\s+spell\s+attack/i.test(text)) {
           const rawName =
             scratch.querySelector('strong')?.textContent?.trim().replace(/\.$/, '') ?? '';
-          const cleanName = rawName.replace(/\s*\(cantrip\)/i, '').trim().toLowerCase();
+          const cleanName = rawName
+            .replace(/\s*\(cantrip\)/i, '')
+            .trim()
+            .toLowerCase();
           if (cleanName) await register(cleanName);
         }
       }
@@ -172,17 +196,41 @@ async function getOrCreateWorldSpellItem(
     }
   }
 
-  // Minimal stub for spells not in any compendium
+  // Rich stub for spells not in any compendium
+  const activation = parseSpellActivation(parsed?.castingTime ?? '');
+  const range = parseSpellRange(parsed?.range ?? '');
+  const area = parseSpellArea(parsed?.range ?? '');
+  const duration = parseSpellDuration(parsed?.duration ?? '');
+
+  const properties = new Set<string>(parsed?.components ?? []);
+  if (parsed?.concentration) properties.add('concentration');
+  if (parsed?.ritual) properties.add('ritual');
+
+  const activity = buildSpellActivity(parsed?.attackSave ?? '', parsed?.damageEffect ?? '', activation);
+
   const data: Record<string, unknown> = {
     name,
     type: 'spell',
     folder: folderId,
+    ...(parsed?.imageUrl ? { img: parsed.imageUrl } : {}),
     system: {
       level: parsed?.level ?? 0,
       school: parsed?.school ?? 'evo',
       description: { value: parsed?.description ?? '' },
-      activation: { type: 'action', value: 1 },
-      ...(parsed?.components?.length ? { properties: parsed.components } : {}),
+      activation,
+      range,
+      duration,
+      materials: { value: parsed?.materialDesc ?? '', consumed: false, cost: 0, supply: 0 },
+      properties: [...properties],
+      ...(area
+        ? {
+            target: {
+              template: { type: area.type, size: String(area.size), units: area.units },
+              affects: {},
+            },
+          }
+        : {}),
+      ...(activity ? { activities: { [foundry.utils.randomID()]: activity } } : {}),
     },
   };
   try {
@@ -229,10 +277,37 @@ async function getOrCreateSpellFolder(): Promise<string | null> {
 
 // ── Compendium lookup ─────────────────────────────────────────────────────────
 
+async function findSpellInPacks(spellName: string): Promise<string | null> {
+  const setting = (game.settings.get(NAMESPACE, SETTINGS.SPELL_PACKS) as string) ?? '';
+  const packIds = setting
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const nameLower = spellName.toLowerCase();
+  for (const packId of packIds) {
+    try {
+      const pack = (game.packs as any).get(packId);
+      if (!pack) continue;
+      const index = await pack.getIndex();
+      const entry = (index as any).find((e: any) => e.name?.toLowerCase() === nameLower);
+      if (entry) return `Compendium.${packId}.Item.${entry._id}`;
+    } catch {
+      // skip unavailable/broken packs
+    }
+  }
+  return null;
+}
+
 async function findSpellInCompendium(name: string): Promise<Record<string, unknown> | null> {
   if (!(game.packs as any)?.contents) return null;
   const nameLower = name.toLowerCase();
-  const PRIORITY = ['dnd5e.spells', 'dnd-players-handbook.spells'];
+
+  const configured = ((game.settings.get(NAMESPACE, SETTINGS.SPELL_PACKS) as string) ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const PRIORITY = configured.length ? configured : ['dnd-players-handbook.spells', 'dnd5e.spells'];
 
   const allPacks = (game.packs as any).contents as any[];
   const ordered: any[] = [
@@ -257,9 +332,7 @@ async function findSpellInCompendium(name: string): Promise<Record<string, unkno
 
 // ── Spell list parsing ────────────────────────────────────────────────────────
 
-function parseSpellLists(
-  text: string,
-): Array<{ method: string; limit: number; spells: string[] }> {
+function parseSpellLists(text: string): Array<{ method: string; limit: number; spells: string[] }> {
   const result: Array<{ method: string; limit: number; spells: string[] }> = [];
 
   for (const line of text.split(/[\n\r]+/)) {
@@ -283,5 +356,150 @@ function parseSpellLists(
 }
 
 function splitSpellList(text: string): string[] {
-  return text.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  return text
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+// ── Spell field converters ────────────────────────────────────────────────────
+
+function parseSpellActivation(castingTime: string): { type: string; value: number | null } {
+  if (!castingTime) return { type: 'action', value: 1 };
+  if (/bonus\s+action/i.test(castingTime)) return { type: 'bonus', value: 1 };
+  if (/reaction/i.test(castingTime)) return { type: 'reaction', value: 1 };
+  const m = castingTime.match(/(\d+)\s+(minute|hour)/i);
+  if (m) return { type: m[2].toLowerCase(), value: parseInt(m[1], 10) };
+  return { type: 'action', value: 1 };
+}
+
+function parseSpellRange(rangeText: string): { value: string | null; units: string } {
+  const base = rangeText.split('(')[0].trim().toLowerCase();
+  if (/^touch/.test(base)) return { value: null, units: 'touch' };
+  if (/^self/.test(base)) return { value: null, units: 'self' };
+  if (/special|unlimited|sight|any/i.test(base)) return { value: null, units: 'spec' };
+  const feetM = rangeText.match(/^(\d+)\s*(?:feet|foot|ft)/i);
+  if (feetM) return { value: feetM[1], units: 'ft' };
+  const mileM = rangeText.match(/^(\d+)\s*mile/i);
+  if (mileM) return { value: mileM[1], units: 'mi' };
+  if (!rangeText) return { value: null, units: 'self' };
+  return { value: null, units: 'spec' };
+}
+
+function parseSpellArea(
+  rangeText: string,
+): { type: string; size: number; units: string } | null {
+  const areaM = rangeText.match(
+    /\((\d+)[\s-]*(foot|feet|ft|mile)[s\s-]*(cone|cube|cylinder|line|radius|emanation|sphere|square)/i,
+  );
+  if (!areaM) return null;
+  const AREA_MAP: Record<string, string> = {
+    cone: 'cone',
+    cube: 'cube',
+    cylinder: 'cylinder',
+    line: 'line',
+    radius: 'radius',
+    emanation: 'radius',
+    sphere: 'sphere',
+    square: 'square',
+  };
+  return {
+    type: AREA_MAP[areaM[3].toLowerCase()] ?? areaM[3].toLowerCase(),
+    size: parseInt(areaM[1], 10),
+    units: /mile/i.test(areaM[2]) ? 'mi' : 'ft',
+  };
+}
+
+function parseSpellDuration(durationText: string): { value: string | null; units: string } {
+  if (!durationText) return { value: null, units: 'inst' };
+  const t = durationText.toLowerCase();
+  if (/instantaneous/i.test(t)) return { value: null, units: 'inst' };
+  if (/until\s+dispelled/i.test(t)) return { value: null, units: 'disp' };
+  if (/permanent/i.test(t)) return { value: null, units: 'perm' };
+  const roundM = t.match(/(\d+)\s*round/i);
+  if (roundM) return { value: roundM[1], units: 'round' };
+  const minuteM = t.match(/(\d+)\s*minute/i);
+  if (minuteM) return { value: minuteM[1], units: 'minute' };
+  const hourM = t.match(/(\d+)\s*hour/i);
+  if (hourM) return { value: hourM[1], units: 'hour' };
+  const dayM = t.match(/(\d+)\s*day/i);
+  if (dayM) return { value: dayM[1], units: 'day' };
+  return { value: null, units: 'spec' };
+}
+
+const DAMAGE_TYPE_MAP_SPELLS: Record<string, string> = {
+  acid: 'acid', bludgeoning: 'bludgeoning', cold: 'cold', fire: 'fire', force: 'force',
+  lightning: 'lightning', necrotic: 'necrotic', piercing: 'piercing', poison: 'poison',
+  psychic: 'psychic', radiant: 'radiant', slashing: 'slashing', thunder: 'thunder',
+  healing: 'healing',
+};
+
+const SAVE_ABILITY_MAP: Record<string, string> = {
+  str: 'str', strength: 'str',
+  dex: 'dex', dexterity: 'dex',
+  con: 'con', constitution: 'con',
+  int: 'int', intelligence: 'int',
+  wis: 'wis', wisdom: 'wis',
+  cha: 'cha', charisma: 'cha',
+};
+
+function parseDamageParts(
+  damageEffect: string,
+): Array<{ number: number; denomination: number; bonus: string; types: string[] }> {
+  const parts: Array<{ number: number; denomination: number; bonus: string; types: string[] }> =
+    [];
+  const m = damageEffect.match(/(\d+)d(\d+)(?:\s*\+\s*(\d+))?\s+(\w+)/i);
+  if (!m) return parts;
+  const dmgType = DAMAGE_TYPE_MAP_SPELLS[m[4].toLowerCase()] ?? m[4].toLowerCase();
+  parts.push({
+    number: parseInt(m[1], 10),
+    denomination: parseInt(m[2], 10),
+    bonus: m[3] ?? '',
+    types: [dmgType],
+  });
+  return parts;
+}
+
+function buildSpellActivity(
+  attackSave: string,
+  damageEffect: string,
+  activation: { type: string; value: number | null },
+): Record<string, unknown> | null {
+  const as = attackSave.toLowerCase();
+  const damageParts = parseDamageParts(damageEffect);
+
+  // Save activity
+  const saveAbilityM = as.match(/\b(str|dex|con|int|wis|cha|strength|dexterity|constitution|intelligence|wisdom|charisma)\b/i);
+  if (saveAbilityM && /save/i.test(as)) {
+    const ability = SAVE_ABILITY_MAP[saveAbilityM[1].toLowerCase()] ?? 'dex';
+    return {
+      type: 'save',
+      activation,
+      save: {
+        ability: [ability],
+        dc: { calculation: 'spellcasting', formula: '' },
+      },
+      damage: { parts: damageParts, onSave: 'half' },
+    };
+  }
+
+  // Attack activity
+  if (/melee/i.test(as)) {
+    return {
+      type: 'attack',
+      activation,
+      attack: { type: { value: 'melee', classification: 'spell' }, flat: false },
+      damage: { parts: damageParts, includeBase: true },
+    };
+  }
+  if (/ranged/i.test(as)) {
+    return {
+      type: 'attack',
+      activation,
+      attack: { type: { value: 'ranged', classification: 'spell' }, flat: false },
+      damage: { parts: damageParts, includeBase: true },
+    };
+  }
+
+  return null;
 }

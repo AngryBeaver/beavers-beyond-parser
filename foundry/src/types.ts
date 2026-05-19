@@ -10,11 +10,16 @@ export interface ChapterStub {
   url: string;
 }
 
+export interface MonsterRef {
+  name: string;
+  monsterHref: string;
+}
+
 export interface ParsedChapter {
   title: string;
   slug: string;
   pages: ParsedPage[];
-  statBlocks: ParsedStatBlock[];
+  statBlocks: MonsterRef[];
 }
 
 export interface ParsedPage {
@@ -48,6 +53,12 @@ export interface ParsedSpell {
   castingTime: string;
   range: string;
   components: string[];
+  materialDesc: string;
+  concentration: boolean;
+  ritual: boolean;
   duration: string;
   description: string;
+  imageUrl: string;
+  attackSave: string;
+  damageEffect: string;
 }

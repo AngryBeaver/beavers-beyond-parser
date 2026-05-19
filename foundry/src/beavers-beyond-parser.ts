@@ -13,6 +13,25 @@ Hooks.once('init', () => {
     default: 'http://localhost:3001',
   });
 
+  game.settings.register(NAMESPACE, SETTINGS.MONSTER_PACKS, {
+    name: 'Monster Compendium Packs',
+    hint: 'Comma-separated compendium pack IDs to search before creating a new monster actor. Order matters — first match wins.',
+    scope: 'world',
+    config: true,
+    type: String,
+    default:
+      'dnd-monster-manual.actors,dnd-dungeon-masters-guide.actors,dnd5e.actors24,dnd5e.monsters',
+  });
+
+  game.settings.register(NAMESPACE, SETTINGS.SPELL_PACKS, {
+    name: 'Spell Compendium Packs',
+    hint: 'Comma-separated compendium pack IDs to search before creating a new spell item. Order matters — first match wins.',
+    scope: 'world',
+    config: true,
+    type: String,
+    default: 'dnd-players-handbook.spells,dnd5e.spells24,dnd5e.spells',
+  });
+
   // Button shown in Module Settings for this module
   game.settings.registerMenu(NAMESPACE, 'importAdventure', {
     name: 'Import Adventure',

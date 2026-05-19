@@ -1,4 +1,7 @@
 import { ParsedChapter, ParsedStatBlock } from '../types.js';
+import { NAMESPACE, SETTINGS } from '../definitions.js';
+import { BeyondFetcher } from './BeyondFetcher.js';
+import { StatBlockParser } from './StatBlockParser.js';
 import { ItemBuilder } from './ItemBuilder.js';
 
 // ── Mapping tables ────────────────────────────────────────────────────────────
@@ -98,67 +101,113 @@ const SECTION_ACTIVATION: Record<string, string> = {
 export class NpcBuilder {
   /**
    * Build all NPCs for an adventure.
-   * Phase 1: import every spell referenced across all stat blocks into
-   *          "Items > dndBeyond > Spells" (deduplication built-in).
-   * Phase 2: create Actor documents with embedded items sourced from those
-   *          world items.
-   * Returns both ID maps so callers can rewrite journal + spell links.
+   * For each unique /monsters/ path found in chapter stat-block refs and page
+   * links: check configured compendium packs first (first match wins); if not
+   * found, fetch the canonical monster page, parse it, and create an Actor in
+   * the "dndbeyond" folder.
+   * Phase 1: import every spell referenced across fetched stat blocks.
+   * Phase 2: create Actor documents.
+   * Returns both UUID maps so callers can rewrite journal + spell links.
    */
   static async build(
     adventureTitle: string,
     chapters: ParsedChapter[],
-    doc?: Document,
-  ): Promise<{ monsterPathToActorId: Map<string, string>; spellNameToItemId: Map<string, string> }> {
+  ): Promise<{
+    monsterPathToActorId: Map<string, string>;
+    spellNameToItemId: Map<string, string>;
+  }> {
     const monsterPathToActorId = new Map<string, string>();
     const emptySpellMap = new Map<string, string>();
 
-    if (!chapters.some((c) => c.statBlocks.length > 0)) {
-      return { monsterPathToActorId, spellNameToItemId: emptySpellMap };
-    }
+    // Collect unique monster refs from inline stat-block stubs + <a> links in pages
+    const monsterRefMap = new Map<string, string>(); // pathname → name
 
-    // Phase 1 — import all spells across every chapter up front
-    const allStatBlocks = chapters.flatMap((c) => c.statBlocks);
-    const { spellNameToItemId } = await ItemBuilder.importAllSpells(allStatBlocks, doc);
-
-    const adventureFolder = (await Folder.create({
-      name: adventureTitle,
-      type: 'Actor',
-      color: '#5b4a2e',
-    })) as Folder;
-
-    // Phase 2 — create actors
-    let count = 0;
-    for (let i = 0; i < chapters.length; i++) {
-      const chapter = chapters[i];
-      if (chapter.statBlocks.length === 0) continue;
-
-      const chapterFolder = (await Folder.create({
-        name: `${String(i + 1).padStart(2, '0')} - ${chapter.title}`,
-        type: 'Actor',
-        folder: adventureFolder?.id ?? null,
-      })) as Folder;
-
-      for (const sb of chapter.statBlocks) {
-        const actor = (await Actor.create(
-          buildActorData(sb, chapterFolder?.id ?? null, spellNameToItemId) as any,
-        )) as Actor | null | undefined;
-        if (actor?.id && sb.monsterHref) {
-          monsterPathToActorId.set(sb.monsterHref, actor.id);
+    for (const chapter of chapters) {
+      for (const ref of chapter.statBlocks) {
+        if (ref.monsterHref && !monsterRefMap.has(ref.monsterHref)) {
+          monsterRefMap.set(ref.monsterHref, ref.name);
         }
-        count++;
+      }
+      for (const page of chapter.pages) {
+        const pageDoc = new DOMParser().parseFromString(page.content, 'text/html');
+        for (const a of Array.from(pageDoc.querySelectorAll('a[href]'))) {
+          const href = (a as HTMLAnchorElement).getAttribute('href') ?? '';
+          let pathname: string;
+          try {
+            pathname = href.startsWith('http') ? new URL(href).pathname : href.split('#')[0];
+          } catch {
+            continue;
+          }
+          if (!pathname.startsWith('/monsters/') || monsterRefMap.has(pathname)) continue;
+          const slug = pathname.split('/').filter(Boolean).pop() ?? '';
+          const name = slug
+            .replace(/^\d+-/, '')
+            .replace(/-/g, ' ')
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+          if (name) monsterRefMap.set(pathname, name);
+        }
       }
     }
 
-    if (count > 0) {
-      ui.notifications?.info(`Created ${count} NPC(s) in Actors → "${adventureTitle}".`);
+    if (monsterRefMap.size === 0) {
+      return { monsterPathToActorId, spellNameToItemId: emptySpellMap };
     }
+
+    const dndBeyondFolderId = await findOrCreateDndBeyondActorFolder();
+    const pendingCreations: Array<{ originalHref: string; sb: ParsedStatBlock }> = [];
+
+    for (const [monsterHref, name] of monsterRefMap) {
+      const packUuid = await findInPacks(name);
+      if (packUuid) {
+        monsterPathToActorId.set(monsterHref, packUuid);
+        continue;
+      }
+
+      try {
+        const html = await BeyondFetcher.fetchPage(`https://www.dndbeyond.com${monsterHref}`);
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const statBlocks = StatBlockParser.extractAll(doc);
+        if (statBlocks.length > 0) {
+          pendingCreations.push({ originalHref: monsterHref, sb: statBlocks[0] });
+        }
+      } catch (err: any) {
+        ui.notifications?.warn(`Could not fetch monster "${name}": ${err.message}`);
+      }
+    }
+
+    if (pendingCreations.length === 0 && monsterPathToActorId.size === 0) {
+      return { monsterPathToActorId, spellNameToItemId: emptySpellMap };
+    }
+
+    // Phase 1 — import spells from fetched stat blocks
+    const { spellNameToItemId } = await ItemBuilder.importAllSpells(
+      pendingCreations.map((p) => p.sb),
+    );
+
+    // Phase 2 — create actors
+    for (const { originalHref, sb } of pendingCreations) {
+      const actor = (await Actor.create(
+        (await buildActorData(sb, dndBeyondFolderId, spellNameToItemId)) as any,
+      )) as Actor | null | undefined;
+      if (actor?.id) {
+        monsterPathToActorId.set(originalHref, `Actor.${actor.id}`);
+      }
+    }
+
+    if (pendingCreations.length > 0) {
+      ui.notifications?.info(
+        `Created ${pendingCreations.length} NPC(s) for "${adventureTitle}" in Actors → "dndbeyond".`,
+      );
+    }
+
     return { monsterPathToActorId, spellNameToItemId };
   }
 
   static async createSingle(sb: ParsedStatBlock, doc?: Document): Promise<void> {
+    const folderId = await findOrCreateDndBeyondActorFolder();
     const { spellNameToItemId } = await ItemBuilder.importAllSpells([sb], doc);
     const actor = (await Actor.create(
-      buildActorData(sb, null, spellNameToItemId) as any,
+      (await buildActorData(sb, folderId, spellNameToItemId)) as any,
     )) as Actor | null | undefined;
     if (actor) {
       ui.notifications?.info(`Created NPC "${sb.name}".`);
@@ -166,18 +215,56 @@ export class NpcBuilder {
   }
 }
 
+// ── Pack / folder helpers ─────────────────────────────────────────────────────
+
+async function findInPacks(monsterName: string): Promise<string | null> {
+  const setting = (game.settings.get(NAMESPACE, SETTINGS.MONSTER_PACKS) as string) ?? '';
+  const packIds = setting
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const nameLower = monsterName.toLowerCase();
+  for (const packId of packIds) {
+    try {
+      const pack = (game.packs as any).get(packId);
+      if (!pack) continue;
+      const index = await pack.getIndex();
+      const entry = (index as any).find((e: any) => e.name?.toLowerCase() === nameLower);
+      if (entry) return `Compendium.${packId}.Actor.${entry._id}`;
+    } catch {
+      // skip unavailable/broken packs
+    }
+  }
+  return null;
+}
+
+async function findOrCreateDndBeyondActorFolder(): Promise<string | null> {
+  try {
+    let folder = (game.folders as any)?.find(
+      (f: any) => f.type === 'Actor' && f.name === 'dndbeyond' && !f.folder,
+    ) as any;
+    if (!folder) {
+      folder = await (Folder as any).create({ name: 'dndbeyond', type: 'Actor' });
+    }
+    return folder?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Actor data builder ────────────────────────────────────────────────────────
 
-function buildActorData(
+async function buildActorData(
   sb: ParsedStatBlock,
   folderId: string | null,
   spellNameToItemId: Map<string, string>,
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
   const movement = parseMovement(sb.speed);
   const senses = parseSenses(sb);
   const traits = parseTraits(sb);
   const skills = parseSkills(sb);
-  const items = buildItems(sb, spellNameToItemId);
+  const items = await buildItems(sb, spellNameToItemId);
 
   return {
     name: sb.name,
@@ -187,7 +274,7 @@ function buildActorData(
     items,
     system: {
       attributes: {
-        hp: { value: sb.hp, min: 0, max: sb.hp, formula: sb.hpFormula },
+        hp: { value: sb.hp, min: 0, max: sb.hp, formula: cleanFormula(sb.hpFormula) },
         ac: { flat: sb.ac, calc: 'flat' },
         movement: { ...movement, units: 'ft' },
         senses: { ranges: senses.ranges, units: 'ft', special: senses.special },
@@ -218,10 +305,10 @@ function buildActorData(
 
 // ── Items ─────────────────────────────────────────────────────────────────────
 
-function buildItems(
+async function buildItems(
   sb: ParsedStatBlock,
   spellNameToItemId: Map<string, string>,
-): Record<string, unknown>[] {
+): Promise<Record<string, unknown>[]> {
   const items: Record<string, unknown>[] = [];
 
   for (const section of sb.sections) {
@@ -230,19 +317,21 @@ function buildItems(
     const isPassive = !activationType && headingLower !== 'actions';
 
     for (const entryHtml of section.entries) {
-      items.push(...buildItemsFromEntry(entryHtml, activationType, isPassive, spellNameToItemId));
+      items.push(
+        ...(await buildItemsFromEntry(entryHtml, activationType, isPassive, spellNameToItemId)),
+      );
     }
   }
 
   return items;
 }
 
-function buildItemsFromEntry(
+async function buildItemsFromEntry(
   entryHtml: string,
   activationType: string | null,
   isPassive: boolean,
   spellNameToItemId: Map<string, string>,
-): Record<string, unknown>[] {
+): Promise<Record<string, unknown>[]> {
   const scratch = new DOMParser().parseFromString(`<p>${entryHtml}</p>`, 'text/html');
   const text = scratch.body.textContent ?? '';
 
@@ -252,12 +341,12 @@ function buildItemsFromEntry(
 
   const descHtml = `<p>${entryHtml}</p>`;
 
-  // Spell attacks — source from pre-imported world item, fall back to weapon-type
+  // Spell attacks — source from pack/world item, fall back to weapon-type
   const isMeleeSpell = /melee\s+spell\s+attack/i.test(text);
   const isRangedSpell = /ranged\s+spell\s+attack/i.test(text);
   if (isMeleeSpell || isRangedSpell) {
     const cleanName = name.replace(/\s*\(cantrip\)/i, '').trim();
-    const spellItem = ItemBuilder.getSpellForActor(cleanName, 'atwill', 0, spellNameToItemId);
+    const spellItem = await ItemBuilder.getSpellForActor(cleanName, 'atwill', 0, spellNameToItemId);
     if (spellItem) return [spellItem];
     return [buildSpellAttackItem(name, text, descHtml, isMeleeSpell)];
   }
@@ -269,7 +358,7 @@ function buildItemsFromEntry(
     return [buildWeaponItem(name, text, descHtml, isMelee)];
   }
 
-  // Spellcasting feature — keep the feat item + add each spell from world items
+  // Spellcasting feature — keep the feat item + add each spell from pack/world items
   const spellLists = ItemBuilder.parseSpellLists(text);
   if (spellLists.length > 0) {
     const result: Record<string, unknown>[] = [];
@@ -279,7 +368,12 @@ function buildItemsFromEntry(
       for (const spellName of spells) {
         if (seen.has(spellName)) continue;
         seen.add(spellName);
-        const spellItem = ItemBuilder.getSpellForActor(spellName, method, limit, spellNameToItemId);
+        const spellItem = await ItemBuilder.getSpellForActor(
+          spellName,
+          method,
+          limit,
+          spellNameToItemId,
+        );
         if (spellItem) result.push(spellItem);
       }
     }
@@ -303,7 +397,7 @@ function buildSpellAttackItem(
   const damageM = text.match(/[Hh]it.*?(\d+)\s*\(([^)]+)\)\s+([\w]+)\s+damage/);
   const baseWeaponDamage = damageM
     ? {
-        custom: { enabled: true, formula: damageM[2].trim() },
+        custom: { enabled: true, formula: cleanFormula(damageM[2].trim()) },
         types: [DAMAGE_TYPE_MAP[damageM[3].toLowerCase()] ?? damageM[3].toLowerCase()],
       }
     : {};
@@ -357,7 +451,7 @@ function buildWeaponItem(
   const damageM = text.match(/[Hh]it.*?(\d+)\s*\(([^)]+)\)\s+([\w]+)\s+damage/);
   const baseWeaponDamage = damageM
     ? {
-        custom: { enabled: true, formula: damageM[2].trim() },
+        custom: { enabled: true, formula: cleanFormula(damageM[2].trim()) },
         types: [DAMAGE_TYPE_MAP[damageM[3].toLowerCase()] ?? damageM[3].toLowerCase()],
       }
     : {};
@@ -630,6 +724,11 @@ function parseSkills(sb: ParsedStatBlock): Record<string, { value: number; abili
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Replace Unicode minus/dash variants with ASCII hyphen so Foundry accepts formulas. */
+function cleanFormula(s: string): string {
+  return s.replace(/[−–—]/g, '-');
+}
 
 function parseCr(cr: string): number {
   if (!cr) return 0;

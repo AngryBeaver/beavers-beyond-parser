@@ -1,11 +1,4 @@
-import {
-  ParsedAdventure,
-  ChapterStub,
-  ParsedChapter,
-  ParsedPage,
-  ParsedStatBlock,
-} from '../types.js';
-import { StatBlockParser } from './StatBlockParser.js';
+import { ParsedAdventure, ChapterStub, ParsedChapter, ParsedPage, MonsterRef } from '../types.js';
 
 export class BeyondParser {
   static parseToc(html: string, url: string): ParsedAdventure {
@@ -45,7 +38,7 @@ export class BeyondParser {
       doc.body;
 
     const pages: ParsedPage[] = [];
-    const statBlocks: ParsedStatBlock[] = [];
+    const statBlocks: MonsterRef[] = [];
     let currentName = 'Overview';
     let buf = '';
     let started = false;
@@ -60,29 +53,35 @@ export class BeyondParser {
       if (tag === 'H1') {
         started = true;
         currentName = 'Overview';
-        // Include H1 only when its text differs from the page name (avoids redundant title)
         if ((node.textContent?.trim() ?? '') !== currentName) buf += node.outerHTML;
       } else if (tag === 'H2' && started) {
         pushPage();
         currentName = node.textContent?.trim() ?? '';
-        // H2 text always equals the new page name — skip it to avoid duplication
       } else if (started) {
         const htmlNode = node as HTMLElement;
-        let sb = null;
+        // Extract monster ref (name + href) from inline stat blocks — never parse them
+        // for actor creation; the canonical /monsters/ page is used instead.
         if (htmlNode.classList?.contains('stat-block-background')) {
-          sb = StatBlockParser.parse(htmlNode);
+          const name =
+            htmlNode.querySelector('[class*="Stat-Block-Title"]')?.textContent?.trim() ?? '';
+          const monsterHref =
+            htmlNode.querySelector('[class*="Stat-Block-Title"] a')?.getAttribute('href') ?? '';
+          if (name && monsterHref) statBlocks.push({ name, monsterHref });
         } else if (
           htmlNode.classList?.contains('more-info') &&
           htmlNode.querySelector('.mon-stat-block')
         ) {
-          sb = StatBlockParser.parseMon(htmlNode);
+          const name =
+            htmlNode
+              .querySelector('.mon-stat-block__name-link, .mon-stat-block__name')
+              ?.textContent?.trim() ?? '';
+          const monsterHref =
+            htmlNode
+              .querySelector<HTMLAnchorElement>('.mon-stat-block__name-link')
+              ?.getAttribute('href') ?? '';
+          if (name && monsterHref) statBlocks.push({ name, monsterHref });
         }
-        if (sb) {
-          statBlocks.push(sb);
-          buf += sb.cleanHtml;
-        } else {
-          buf += node.outerHTML;
-        }
+        buf += node.outerHTML;
       }
     }
     pushPage();

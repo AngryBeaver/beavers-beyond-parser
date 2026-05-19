@@ -9,7 +9,7 @@ export class ImportMonsterWindow extends (foundry.applications.api.HandlebarsApp
   static DEFAULT_OPTIONS = {
     id: 'beavers-beyond-monster',
     window: { title: 'Import Monster from D&D Beyond', resizable: true },
-    position: { width: 520, height: 380 },
+    position: { width: 520, height: 240 },
     actions: {
       create: ImportMonsterWindow._onCreate,
     },
@@ -62,22 +62,16 @@ export class ImportMonsterWindow extends (foundry.applications.api.HandlebarsApp
   }
 
   static async _onCreate(this: ImportMonsterWindow): Promise<void> {
-    const urlInput = this.element.querySelector('.bbp-url-input') as HTMLInputElement | null;
-    const url = urlInput?.value.trim() ?? '';
-    const raw = (this.element.querySelector('.bbp-paste-area') as HTMLTextAreaElement).value.trim();
+    const url =
+      (this.element.querySelector('.bbp-url-input') as HTMLInputElement | null)?.value.trim() ?? '';
 
-    if (!url && !raw) {
-      return void ui.notifications?.warn('Enter a D&D Beyond URL or paste stat block HTML first.');
+    if (!url) {
+      return void ui.notifications?.warn('Enter a D&D Beyond monster URL first.');
     }
 
-    this._setStatus(url ? 'Fetching…' : 'Parsing…');
+    this._setStatus('Fetching…');
     try {
-      let html: string;
-      if (url) {
-        html = await BeyondFetcher.fetchPage(url);
-      } else {
-        html = raw;
-      }
+      const html = await BeyondFetcher.fetchPage(url);
       const doc = new DOMParser().parseFromString(html, 'text/html');
       const statBlocks = StatBlockParser.extractAll(doc);
       if (statBlocks.length === 0) {

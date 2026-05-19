@@ -26,11 +26,12 @@ export class SpellParser {
       const spellEl = container.querySelector<HTMLElement>('.ddb-statblock-spell');
       if (!spellEl) continue;
 
-      const name =
-        container.querySelector<HTMLImageElement>('img.spell-image')?.getAttribute('alt')?.trim() ??
-        container.querySelector('.more-info-title')?.textContent?.trim() ??
-        '';
+      const imgEl = container.querySelector<HTMLImageElement>('img.spell-image');
+      const name = imgEl?.getAttribute('alt')?.trim() ??
+        container.querySelector('.more-info-title')?.textContent?.trim() ?? '';
       if (!name) continue;
+
+      const imageUrl = imgEl?.getAttribute('src')?.trim() ?? '';
 
       const getVal = (cls: string) =>
         spellEl
@@ -46,6 +47,12 @@ export class SpellParser {
       if (/\bV\b/.test(compText)) components.push('vocal');
       if (/\bS\b/.test(compText)) components.push('somatic');
       if (/\bM\b/.test(compText)) components.push('material');
+      const ritual = /\bR\b/.test(compText) || /ritual/i.test(compText);
+      const materialDescM = compText.match(/M\s*\(([^)]+)\)/i);
+      const materialDesc = materialDescM ? materialDescM[1].trim() : '';
+
+      const durationText = getVal('duration');
+      const concentration = /concentration/i.test(durationText);
 
       const description = Array.from(
         container.querySelectorAll<HTMLElement>('.more-info-content p'),
@@ -60,8 +67,14 @@ export class SpellParser {
         castingTime: getVal('casting-time'),
         range: getVal('range-area'),
         components,
-        duration: getVal('duration'),
+        materialDesc,
+        concentration,
+        ritual,
+        duration: durationText,
         description,
+        imageUrl,
+        attackSave: getVal('attack-save'),
+        damageEffect: getVal('damage-effect'),
       });
     }
 
@@ -77,7 +90,9 @@ export class SpellParser {
     const name =
       doc.querySelector('h1.page-title, h1.spell-name, h1')?.textContent?.trim() ?? fallbackName;
 
-    // Level + school from the detail stat block if present
+    const imgEl = doc.querySelector<HTMLImageElement>('img.spell-image, img.spell-header-image');
+    const imageUrl = imgEl?.getAttribute('src')?.trim() ?? '';
+
     const getDetail = (label: string) =>
       Array.from(doc.querySelectorAll('.ddb-statblock-item'))
         .find((el) => el.querySelector('.ddb-statblock-item-label')?.textContent?.trim() === label)
@@ -93,8 +108,13 @@ export class SpellParser {
     if (/\bV\b/.test(compText)) components.push('vocal');
     if (/\bS\b/.test(compText)) components.push('somatic');
     if (/\bM\b/.test(compText)) components.push('material');
+    const ritual = /\bR\b/.test(compText) || /ritual/i.test(compText);
+    const materialDescM = compText.match(/M\s*\(([^)]+)\)/i);
+    const materialDesc = materialDescM ? materialDescM[1].trim() : '';
 
-    // Description: grab from the most likely content container
+    const durationText = getDetail('Duration');
+    const concentration = /concentration/i.test(durationText);
+
     const contentEl = doc.querySelector(
       '.spell-description, .more-info-content, .spell-body-content, .p-article-content',
     );
@@ -109,10 +129,16 @@ export class SpellParser {
       level,
       school,
       castingTime: getDetail('Casting Time'),
-      range: getDetail('Range'),
+      range: getDetail('Range') || getDetail('Range/Area'),
       components,
-      duration: getDetail('Duration'),
+      materialDesc,
+      concentration,
+      ritual,
+      duration: durationText,
       description,
+      imageUrl,
+      attackSave: getDetail('Attack/Save'),
+      damageEffect: getDetail('Damage/Effect'),
     };
   }
 }

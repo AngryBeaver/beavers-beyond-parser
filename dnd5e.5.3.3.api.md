@@ -373,3 +373,125 @@ attack: {
   type: { value: "melee", classification: "spell" },   // "spell" not "weapon"
 }
 ```
+
+---
+
+## Full SpellData Schema (line 21911) — all top-level fields
+
+```js
+{
+  name: "Fireball",
+  type: "spell",
+  img: "https://…/fireball.png",   // spell image URL
+  folder: folderId,
+  system: {
+    level: 3,                    // 0=cantrip, 1–9
+    school: "evo",               // see Spell Schools above
+    method: "",                  // preparation method key (empty for world items)
+    description: { value: "<p>HTML</p>" },
+
+    // ActivationField (line 11153): type + value + condition
+    activation: { type: "action", value: 1 },
+    // type keys: "action" | "bonus" | "reaction" | "minute" | "hour" | "day" | "special" | "none"
+    // scalar types (minute/hour/day) accept numeric value; reaction/bonus/action: value=1
+
+    // RangeField (line 11288): value (formula, nullable) + units + special
+    range: { value: "60", units: "ft" },
+    // units: "ft" | "mi" | "m" | "km" | "self" | "touch" | "spec" | "any"
+    // value is null for self/touch/spec; string formula for numeric ranges
+
+    // DurationField (line 11216): value (formula, nullable) + units + special
+    duration: { value: "1", units: "minute" },
+    // units: "inst" | "round" | "minute" | "hour" | "day" | "week" | "month" | "year" | "disp" | "dstr" | "perm" | "spec"
+    // value is null for inst/disp/dstr/perm/spec; numeric string for scalar units
+
+    // SchemaField: materials
+    materials: {
+      value: "a tiny ball of bat guano and sulfur",  // material component description
+      consumed: false,
+      cost: 0,
+      supply: 0,
+    },
+
+    // SetField<StringField>: spell properties
+    properties: ["vocal", "somatic", "material", "concentration", "ritual"],
+    // valid keys: "vocal" | "somatic" | "material" | "concentration" | "ritual"
+    // pass as array on creation; stored as Set<string>
+
+    // TargetField (line 11344)
+    target: {
+      template: {
+        type: "cone",    // area target type key (see Area Target Types below)
+        size: "15",      // formula string (ft radius/length/etc.)
+        width: "",
+        height: "",
+        units: "ft",
+      },
+      affects: {
+        count: "1",      // formula string — number of creatures affected
+        type: "creature",  // individual target type key (see below)
+        choice: false,
+        special: "",
+      },
+    },
+
+    // Activities (same system as weapons/feats)
+    activities: { [id]: { … } },
+
+    // UsesField — for innate/limited spells embedded in actors
+    uses: { max: "3", spent: 0, recovery: [{ period: "day", type: "recoverAll" }] },
+  },
+}
+```
+
+### Save Activity (BaseSaveActivityData line 31224)
+```js
+{
+  type: "save",
+  activation: { type: "action", value: 1 },
+  save: {
+    ability: ["dex"],     // SetField → pass array; ability abbreviation
+    dc: {
+      calculation: "spellcasting",  // "spellcasting" | "flat" | ability key
+      formula: "",
+    },
+  },
+  damage: {
+    parts: [{ number: 8, denomination: 6, bonus: "", types: ["fire"] }],
+    onSave: "half",   // "half" | "none" | "full"
+  },
+}
+```
+
+### Area Target Types (`CONFIG.DND5E.areaTargetTypes`, line 46327)
+| Key        | Template Shape | Measured Dimensions  |
+|------------|---------------|----------------------|
+| `circle`   | circle        | radius               |
+| `cone`     | cone          | length               |
+| `cube`     | rect          | width                |
+| `cylinder` | circle        | radius + height      |
+| `line`     | ray           | length + width       |
+| `radius`   | circle        | (emanation)          |
+| `sphere`   | circle        | radius               |
+| `square`   | rect          | width                |
+| `wall`     | ray           | length + thickness + height |
+
+### Individual Target Types (`CONFIG.DND5E.individualTargetTypes`, line 46281)
+`self`, `ally`, `enemy`, `creature`, `object`, `space`, `creatureOrObject`, `any`, `willing`
+
+### Range/Distance Unit Keys (`CONFIG.DND5E.distanceUnits`, line 46143)
+Movement: `ft`, `mi`, `m`, `km`
+Special: `self`, `touch`, `spec`, `any`
+
+### Duration Unit Keys
+Scalar (accept numeric value): `round`, `minute`, `hour`, `day`, `week`, `month`, `year`
+Non-scalar: `inst` (instantaneous), `disp` (until dispelled), `dstr` (until triggered), `perm` (permanent), `spec` (special)
+
+### Key Additional References
+- `SpellData.defineSchema` (line 21925): full field list
+- `ActivationField` (line 11153): type/value/condition
+- `DurationField` (line 11216): value formula + units; concentration derived from `properties.has("concentration")`
+- `RangeField` (line 11288): value formula + units + special
+- `TargetField` (line 11344): template (area) + affects (count/type)
+- `BaseSaveActivityData` (line 31224): save.ability (Set) + save.dc + damage.parts + damage.onSave
+- `BaseAttackActivityData` (line 27973): attack.ability/bonus/flat/type + damage.parts

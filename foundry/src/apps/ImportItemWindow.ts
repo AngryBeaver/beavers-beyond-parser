@@ -52,7 +52,6 @@ export class ImportItemWindow extends (foundry.applications.api.HandlebarsApplic
     return { proxyUrl, proxyAvailable };
   }
 
-
   async close(options?: object): Promise<this> {
     ImportItemWindow._instance = null;
     return super.close(options);
@@ -64,12 +63,8 @@ export class ImportItemWindow extends (foundry.applications.api.HandlebarsApplic
   }
 
   static async _onImport(this: ImportItemWindow): Promise<void> {
-    const url = (
-      this.element.querySelector('.bbp-url-input') as HTMLInputElement
-    ).value.trim();
-    const raw = (
-      this.element.querySelector('.bbp-paste-area') as HTMLTextAreaElement
-    ).value.trim();
+    const url = (this.element.querySelector('.bbp-url-input') as HTMLInputElement).value.trim();
+    const raw = (this.element.querySelector('.bbp-paste-area') as HTMLTextAreaElement).value.trim();
 
     if (!url && !raw) {
       return void ui.notifications?.warn(

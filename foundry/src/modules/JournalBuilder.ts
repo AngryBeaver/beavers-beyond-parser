@@ -37,13 +37,25 @@ export class JournalBuilder {
       created.push({ journal, chapter, pageIds });
     }
 
-    // Build slug → { journalId, anchor→pageId } for link rewriting
+    // Build slug → { journalId, anchor→pageId } for link rewriting.
+    // anchorToPageId covers:
+    //   • H2 headings (become page-name anchors via normalizeAnchor(page.name))
+    //   • Every [id] attribute found anywhere in the page content HTML
+    //     (covers H3/H4/… anchors that DDB embeds in the adventure text)
     const slugToData = new Map<string, JournalData>();
     for (const { journal, chapter, pageIds } of created) {
       const anchorToPageId = new Map<string, string>();
       chapter.pages.forEach((page, i) => {
+        // H2-level: map the page name itself
         const norm = normalizeAnchor(page.name);
         if (norm) anchorToPageId.set(norm, pageIds[i]);
+
+        // Sub-H2: scan all id attributes in the page's HTML content
+        const pageDoc = new DOMParser().parseFromString(page.content, 'text/html');
+        for (const el of Array.from(pageDoc.querySelectorAll('[id]'))) {
+          const id = el.getAttribute('id');
+          if (id) anchorToPageId.set(normalizeAnchor(id), pageIds[i]);
+        }
       });
       slugToData.set(chapter.slug, { journalId: journal.id, anchorToPageId });
     }
@@ -51,13 +63,20 @@ export class JournalBuilder {
     // Pass 2: create pages with pre-assigned IDs and rewritten links
     for (const { journal, chapter, pageIds } of created) {
       if (chapter.pages.length === 0) continue;
+      const chapterData = slugToData.get(chapter.slug);
       const pages = chapter.pages.map((page, i) => ({
         _id: pageIds[i],
         name: page.name || `Page ${i + 1}`,
         type: 'text',
         sort: (i + 1) * 100,
         text: {
-          content: rewriteLinks(page.content, slugToData, monsterPathToActorId, spellNameToItemId),
+          content: rewriteLinks(
+            page.content,
+            slugToData,
+            monsterPathToActorId,
+            spellNameToItemId,
+            chapterData,
+          ),
           format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML,
         },
       }));
@@ -72,11 +91,30 @@ function normalizeAnchor(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+/**
+ * Look up a link anchor in the page-id map.
+ * Exact match first; then prefix match where the next char is a letter —
+ * this handles DDB's pattern of short anchors (#M1) that are prefixes of the
+ * full heading id (M1FoyerandHallway) without false-matching #M1 → M10Kitchen.
+ */
+function lookupAnchor(anchorToPageId: Map<string, string>, anchor: string): string | undefined {
+  const norm = normalizeAnchor(anchor);
+  const exact = anchorToPageId.get(norm);
+  if (exact) return exact;
+  for (const [key, pageId] of anchorToPageId) {
+    if (key.startsWith(norm) && key.length > norm.length && /^[a-z]/.test(key[norm.length])) {
+      return pageId;
+    }
+  }
+  return undefined;
+}
+
 function rewriteLinks(
   html: string,
   slugToData: Map<string, JournalData>,
   monsterPathToActorId: Map<string, string>,
   spellNameToItemId: Map<string, string>,
+  currentChapterData?: JournalData,
 ): string {
   if (slugToData.size === 0 && monsterPathToActorId.size === 0 && spellNameToItemId.size === 0)
     return html;
@@ -84,6 +122,7 @@ function rewriteLinks(
   let changed = false;
 
   for (const a of Array.from(doc.querySelectorAll('a[href]'))) {
+    if (a.getAttribute('aria-hidden') === 'true') continue;
     const href = a.getAttribute('href') ?? '';
     let pathname: string;
     let hash: string;
@@ -108,11 +147,26 @@ function rewriteLinks(
 
     const text = a.textContent?.trim() ?? '';
 
+    // Pure in-page hash links (#SomeAnchor with no pathname) — resolve within
+    // the current chapter using the expanded anchorToPageId map.
+    if (!pathname && hash && currentChapterData) {
+      const pageId = lookupAnchor(currentChapterData.anchorToPageId, hash);
+      if (pageId) {
+        a.replaceWith(
+          doc.createTextNode(
+            `@UUID[JournalEntry.${currentChapterData.journalId}.JournalEntryPage.${pageId}]{${text}}`,
+          ),
+        );
+        changed = true;
+      }
+      continue;
+    }
+
     // Monster links: /monsters/...
     if (pathname.startsWith('/monsters/')) {
-      const actorId = monsterPathToActorId.get(pathname);
-      if (actorId) {
-        a.replaceWith(doc.createTextNode(`@UUID[Actor.${actorId}]{${text}}`));
+      const actorUuid = monsterPathToActorId.get(pathname);
+      if (actorUuid) {
+        a.replaceWith(doc.createTextNode(`@UUID[${actorUuid}]{${text}}`));
         changed = true;
       }
       continue;
@@ -121,13 +175,12 @@ function rewriteLinks(
     // Spell links: /spells/123-fire-bolt or /spells/fire-bolt
     if (pathname.includes('/spells/')) {
       const slug = pathname.split('/').filter(Boolean).pop() ?? '';
-      // Strip numeric prefix ("2102-fire-bolt" → "fire bolt") then try name fallback
       const nameFromSlug = slug.replace(/^\d+-/, '').replace(/-/g, ' ');
-      const itemId =
+      const spellUuid =
         spellNameToItemId.get(nameFromSlug.toLowerCase()) ??
         spellNameToItemId.get(text.toLowerCase());
-      if (itemId) {
-        a.replaceWith(doc.createTextNode(`@UUID[Item.${itemId}]{${text}}`));
+      if (spellUuid) {
+        a.replaceWith(doc.createTextNode(`@UUID[${spellUuid}]{${text}}`));
         changed = true;
       }
       continue;
@@ -140,7 +193,7 @@ function rewriteLinks(
     if (!data) continue;
 
     if (hash) {
-      const pageId = data.anchorToPageId.get(normalizeAnchor(hash));
+      const pageId = lookupAnchor(data.anchorToPageId, hash);
       if (pageId) {
         a.replaceWith(
           doc.createTextNode(
