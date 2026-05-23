@@ -1,6 +1,7 @@
 declare namespace foundry {
   namespace utils {
     function randomID(length?: number): string;
+    function deepClone<T>(original: T): T;
   }
   namespace applications {
     namespace api {
