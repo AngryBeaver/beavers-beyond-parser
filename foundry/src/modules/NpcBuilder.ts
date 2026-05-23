@@ -355,14 +355,24 @@ async function buildItemsFromEntry(
   const descHtml = `<p>${entryHtml}</p>`;
 
   // Compendium lookup — prefer a real compendium item over a freshly-built one
-  const { item: compendiumItem } = await findInCompendium(name, text, { useAi: AiLookup.isEnabled() });
+  const useAi = AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
+  const { item: compendiumItem, img: fallbackImg } = await findInCompendium(name, text, { useAi });
   if (compendiumItem) {
     if (uses) {
       const sys = (compendiumItem.system as Record<string, unknown>) ?? {};
       compendiumItem.system = { ...sys, uses };
     }
+    if (activationCost !== 1) {
+      const acts = ((compendiumItem.system as any)?.activities ?? {}) as Record<string, any>;
+      for (const act of Object.values(acts)) {
+        if (act?.activation) act.activation.value = activationCost;
+      }
+    }
     return [compendiumItem];
   }
+
+  // Normal build path — collect into `built` so fallbackImg can be applied uniformly
+  let built: Record<string, unknown>[];
 
   // Spell attacks — only entries with a /spells/ link are real compendium spells.
   // Custom monster actions like "Fire Ray. Ranged Spell Attack:" have no such link → weapon.
@@ -374,50 +384,55 @@ async function buildItemsFromEntry(
       // Real spell — use link text as canonical name (avoids "(Cantrip)" from <strong>)
       const spellName = spellLink.textContent?.trim() ?? name;
       const spellItem = await ItemBuilder.getSpellForActor(spellName, 'atwill', 0, spellNameToItemId);
-      if (spellItem) return [spellItem];
-      return [buildAttackItem(spellName, entryHtml, isMeleeSpell, 'spell')];
+      built = spellItem ? [spellItem] : [buildAttackItem(spellName, entryHtml, isMeleeSpell, 'spell')];
+    } else {
+      // No spell link → custom weapon attack (Fire Ray, Claw, etc.)
+      built = [buildAttackItem(name, entryHtml, isMeleeSpell, 'weapon', uses, activationCost)];
     }
-    // No spell link → custom weapon attack (Fire Ray, Claw, etc.)
-    return [buildAttackItem(name, entryHtml, isMeleeSpell, 'weapon', uses, activationCost)];
-  }
-
-  // Weapon attacks
-  const isMelee = /melee\s+weapon\s+attack/i.test(text);
-  const isRanged = /ranged\s+weapon\s+attack/i.test(text);
-  if (isMelee || isRanged) {
-    return [buildAttackItem(name, entryHtml, isMelee, 'weapon', uses, activationCost)];
-  }
-
-  // Spellcasting feature — keep the feat item + add each spell from pack/world items
-  const spellLists = ItemBuilder.parseSpellLists(text);
-  if (spellLists.length > 0) {
-    const result: Record<string, unknown>[] = [];
-    result.push(buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost));
-    const seen = new Set<string>();
-    for (const { method, limit, spells } of spellLists) {
-      for (const spellName of spells) {
-        if (seen.has(spellName)) continue;
-        seen.add(spellName);
-        const spellItem = await ItemBuilder.getSpellForActor(
-          spellName,
-          method,
-          limit,
-          spellNameToItemId,
+  } else {
+    // Weapon attacks
+    const isMelee = /melee\s+weapon\s+attack/i.test(text);
+    const isRanged = /ranged\s+weapon\s+attack/i.test(text);
+    if (isMelee || isRanged) {
+      built = [buildAttackItem(name, entryHtml, isMelee, 'weapon', uses, activationCost)];
+    } else {
+      // Spellcasting feature — keep the feat item + add each spell from pack/world items
+      const spellLists = ItemBuilder.parseSpellLists(text);
+      if (spellLists.length > 0) {
+        const spellResult: Record<string, unknown>[] = [];
+        spellResult.push(buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost));
+        const seen = new Set<string>();
+        for (const { method, limit, spells } of spellLists) {
+          for (const spellName of spells) {
+            if (seen.has(spellName)) continue;
+            seen.add(spellName);
+            const spellItem = await ItemBuilder.getSpellForActor(
+              spellName,
+              method,
+              limit,
+              spellNameToItemId,
+            );
+            if (spellItem) spellResult.push(spellItem);
+          }
+        }
+        built = spellResult;
+      } else {
+        const saveM = text.match(
+          /DC\s+(\d+)\s+(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+saving\s+throw/i,
         );
-        if (spellItem) result.push(spellItem);
+        built = saveM
+          ? [buildSaveItem(name, descHtml, activationType, saveM, text, uses, activationCost)]
+          : [buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost)];
       }
     }
-    return result;
   }
 
-  const saveM = text.match(
-    /DC\s+(\d+)\s+(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+saving\s+throw/i,
-  );
-  if (saveM) {
-    return [buildSaveItem(name, descHtml, activationType, saveM, text, uses, activationCost)];
+  if (fallbackImg) {
+    for (const item of built) {
+      if (!item.img) item.img = fallbackImg;
+    }
   }
-
-  return [buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost)];
+  return built;
 }
 
 // ── Attack item (weapons and spell-attack fallbacks) ──────────────────────────

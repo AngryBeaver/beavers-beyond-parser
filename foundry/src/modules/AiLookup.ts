@@ -7,6 +7,9 @@ export const AiLookup = {
   isEnabled(): boolean {
     return false;
   },
+  isConfigured(): boolean {
+    return false;
+  },
   async semanticMatch(_parsedText: string, _descriptionText: string): Promise<boolean> {
     return false;
   },
