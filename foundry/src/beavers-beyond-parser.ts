@@ -32,6 +32,15 @@ Hooks.once('init', () => {
     default: 'dnd-players-handbook.spells,dnd5e.spells24,dnd5e.spells',
   });
 
+  game.settings.register(NAMESPACE, SETTINGS.AI_SUPPORT_ENABLED, {
+    name: 'Enable AI Support',
+    hint: 'Uses beavers-ai-assistant to semantically match and patch compendium items. Requires the beavers-ai-assistant module to be active and configured.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false,
+  });
+
   // Button shown in Module Settings for this module
   game.settings.registerMenu(NAMESPACE, 'importAdventure', {
     name: 'Import Adventure',
@@ -49,6 +58,19 @@ Hooks.once('init', () => {
 
 Hooks.once('ready', () => {
   console.log(`${NAMESPACE} | Ready`);
+
+  const aiEnabled = game.settings.get(NAMESPACE, SETTINGS.AI_SUPPORT_ENABLED) as boolean;
+  if (aiEnabled) {
+    if (!(game.modules as any).get('beavers-ai-assistant')?.active) {
+      ui.notifications?.warn(
+        'beavers-beyond-parser: AI support is enabled but the beavers-ai-assistant module is not active.',
+      );
+    } else if (!(game as any)['beavers-ai-assistant']?.AiService?.isConfigured()) {
+      ui.notifications?.warn(
+        'beavers-beyond-parser: AI support is enabled but beavers-ai-assistant has no API key configured.',
+      );
+    }
+  }
 });
 
 // "Import Adventure" button in the Journal sidebar header
