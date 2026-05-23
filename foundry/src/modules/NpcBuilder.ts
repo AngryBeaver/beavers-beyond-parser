@@ -3,6 +3,8 @@ import { NAMESPACE, SETTINGS } from '../definitions.js';
 import { BeyondFetcher } from './BeyondFetcher.js';
 import { StatBlockParser } from './StatBlockParser.js';
 import { ItemBuilder } from './ItemBuilder.js';
+import { findInCompendium } from './CompendiumLookup.js';
+import { AiLookup } from './AiLookup.js';
 
 // ── Mapping tables ────────────────────────────────────────────────────────────
 
@@ -348,11 +350,19 @@ async function buildItemsFromEntry(
   const nameEl = scratch.querySelector('strong');
   const rawName = nameEl?.textContent?.trim().replace(/\.$/, '') ?? '';
   if (!rawName) return [];
-  const usageMatch = rawName.match(/\s*\((\d+)\/day\)/i);
-  const dailyLimit = usageMatch ? parseInt(usageMatch[1], 10) : 0;
-  const name = rawName.replace(/\s*\(\d+\/day\)/i, '').trim();
+  const { name, uses, activationCost } = parseNameParens(rawName);
 
   const descHtml = `<p>${entryHtml}</p>`;
+
+  // Compendium lookup — prefer a real compendium item over a freshly-built one
+  const { item: compendiumItem } = await findInCompendium(name, text, { useAi: AiLookup.isEnabled() });
+  if (compendiumItem) {
+    if (uses) {
+      const sys = (compendiumItem.system as Record<string, unknown>) ?? {};
+      compendiumItem.system = { ...sys, uses };
+    }
+    return [compendiumItem];
+  }
 
   // Spell attacks — only entries with a /spells/ link are real compendium spells.
   // Custom monster actions like "Fire Ray. Ranged Spell Attack:" have no such link → weapon.
@@ -368,21 +378,21 @@ async function buildItemsFromEntry(
       return [buildAttackItem(spellName, entryHtml, isMeleeSpell, 'spell')];
     }
     // No spell link → custom weapon attack (Fire Ray, Claw, etc.)
-    return [buildAttackItem(name, entryHtml, isMeleeSpell, 'weapon')];
+    return [buildAttackItem(name, entryHtml, isMeleeSpell, 'weapon', uses, activationCost)];
   }
 
   // Weapon attacks
   const isMelee = /melee\s+weapon\s+attack/i.test(text);
   const isRanged = /ranged\s+weapon\s+attack/i.test(text);
   if (isMelee || isRanged) {
-    return [buildAttackItem(name, entryHtml, isMelee, 'weapon')];
+    return [buildAttackItem(name, entryHtml, isMelee, 'weapon', uses, activationCost)];
   }
 
   // Spellcasting feature — keep the feat item + add each spell from pack/world items
   const spellLists = ItemBuilder.parseSpellLists(text);
   if (spellLists.length > 0) {
     const result: Record<string, unknown>[] = [];
-    result.push(buildFeatItem(name, descHtml, activationType, isPassive, dailyLimit));
+    result.push(buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost));
     const seen = new Set<string>();
     for (const { method, limit, spells } of spellLists) {
       for (const spellName of spells) {
@@ -404,10 +414,10 @@ async function buildItemsFromEntry(
     /DC\s+(\d+)\s+(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+saving\s+throw/i,
   );
   if (saveM) {
-    return [buildSaveItem(name, descHtml, activationType, saveM, text, dailyLimit)];
+    return [buildSaveItem(name, descHtml, activationType, saveM, text, uses, activationCost)];
   }
 
-  return [buildFeatItem(name, descHtml, activationType, isPassive, dailyLimit)];
+  return [buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost)];
 }
 
 // ── Attack item (weapons and spell-attack fallbacks) ──────────────────────────
@@ -417,6 +427,8 @@ function buildAttackItem(
   entryHtml: string,
   isMelee: boolean,
   classification: 'weapon' | 'spell',
+  uses: UsesConfig | null = null,
+  activationCost = 1,
 ): Record<string, unknown> {
   const scratch = new DOMParser().parseFromString(`<p>${entryHtml}</p>`, 'text/html');
   const text = scratch.body.textContent ?? '';
@@ -479,7 +491,7 @@ function buildAttackItem(
       activities: {
         [activityId]: {
           type: 'attack',
-          activation: { type: 'action', value: 1 },
+          activation: { type: 'action', value: activationCost },
           attack: {
             bonus: attackBonus,
             flat: true,
@@ -488,6 +500,7 @@ function buildAttackItem(
           damage: { includeBase: true, parts: [] },
         },
       },
+      ...(uses ? { uses } : {}),
     },
   };
 }
@@ -500,7 +513,8 @@ function buildSaveItem(
   activationType: string | null,
   saveMatch: RegExpMatchArray,
   text: string,
-  dailyLimit: number,
+  uses: UsesConfig | null,
+  activationCost = 1,
 ): Record<string, unknown> {
   const dc = parseInt(saveMatch[1], 10);
   const ability = FULL_ABILITY_MAP[saveMatch[2].toLowerCase()] ?? 'dex';
@@ -539,7 +553,7 @@ function buildSaveItem(
   const activityId = foundry.utils.randomID();
   const activity: Record<string, unknown> = {
     type: 'save',
-    activation: { type: activationType ?? 'action', value: 1 },
+    activation: { type: activationType ?? 'action', value: activationCost },
     save: {
       ability: [ability],
       dc: { calculation: '', formula: String(dc) },
@@ -551,9 +565,7 @@ function buildSaveItem(
   const system: Record<string, unknown> = {
     description: { value: descHtml },
     activities: { [activityId]: activity },
-    ...(dailyLimit > 0
-      ? { uses: { max: String(dailyLimit), spent: 0, recovery: [{ period: 'day', type: 'recoverAll' }] } }
-      : {}),
+    ...(uses ? { uses } : {}),
   };
 
   return { name, type: 'feat', system };
@@ -566,7 +578,8 @@ function buildFeatItem(
   descHtml: string,
   activationType: string | null,
   isPassive: boolean,
-  dailyLimit: number = 0,
+  uses: UsesConfig | null = null,
+  activationCost = 1,
 ): Record<string, unknown> {
   const activities: Record<string, unknown> = {};
 
@@ -574,7 +587,7 @@ function buildFeatItem(
     const actId = foundry.utils.randomID();
     activities[actId] = {
       type: 'utility',
-      activation: { type: activationType, value: 1 },
+      activation: { type: activationType, value: activationCost },
     };
   }
 
@@ -584,9 +597,7 @@ function buildFeatItem(
     system: {
       description: { value: descHtml },
       ...(Object.keys(activities).length > 0 ? { activities } : {}),
-      ...(dailyLimit > 0
-        ? { uses: { max: String(dailyLimit), spent: 0, recovery: [{ period: 'day', type: 'recoverAll' }] } }
-        : {}),
+      ...(uses ? { uses } : {}),
     },
   };
 }
@@ -796,6 +807,71 @@ function parseSkills(sb: ParsedStatBlock): Record<string, { value: number; abili
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+interface UsesConfig {
+  max: string;
+  spent: number;
+  recovery: Array<{ period: string; type: string; formula?: string }>;
+}
+
+interface NameParsed {
+  name: string;
+  uses: UsesConfig | null;
+  activationCost: number;
+}
+
+/**
+ * Strip parenthetical usage/recharge/cost annotations from a raw ability name
+ * and convert them to structured dnd5e data.
+ *
+ * Handled patterns (case-insensitive):
+ *   (X/Day)                                → day recovery, max X
+ *   (X/Short Rest) / (X/Long Rest)         → sr / lr recovery, max X
+ *   (Recharge X-Y) / (Recharge X)          → recharge period, formula = X (min d6 roll)
+ *   (Recharges after a Short or Long Rest) → sr recovery, max 1
+ *   (Recharges after a Long Rest)          → lr recovery, max 1
+ *   (Recharges after a Short Rest)         → sr recovery, max 1
+ *   (Costs X Actions)                      → activationCost = X
+ */
+function parseNameParens(rawName: string): NameParsed {
+  let s = rawName.replace(/\.$/, '');
+  let uses: UsesConfig | null = null;
+  let activationCost = 1;
+
+  // (X/Day), (X/Short Rest), (X/Long Rest)
+  s = s.replace(/\s*\((\d+)\s*\/\s*(day|short\s+rest|long\s+rest)s?\)/gi, (_, n, period) => {
+    if (!uses) {
+      const p = /short/i.test(period) ? 'sr' : /long/i.test(period) ? 'lr' : 'day';
+      uses = { max: n, spent: 0, recovery: [{ period: p, type: 'recoverAll' }] };
+    }
+    return '';
+  });
+
+  // (Recharge X-Y) or (Recharge X) — X is the minimum roll on a d6
+  s = s.replace(/\s*\(Recharge\s+(\d+)(?:\s*[–\-]\s*\d+)?\)/gi, (_, min) => {
+    if (!uses) {
+      uses = { max: '1', spent: 0, recovery: [{ period: 'recharge', type: 'recoverAll', formula: min }] };
+    }
+    return '';
+  });
+
+  // (Recharges after a Short or Long Rest) / (Recharges after a Long Rest) / (Recharges after a Short Rest)
+  s = s.replace(/\s*\(Recharges?\s+after\s+[^)]+Rest\)/gi, (match) => {
+    if (!uses) {
+      const p = /short/i.test(match) ? 'sr' : 'lr';
+      uses = { max: '1', spent: 0, recovery: [{ period: p, type: 'recoverAll' }] };
+    }
+    return '';
+  });
+
+  // (Costs X Actions) — for legendary actions
+  s = s.replace(/\s*\(Costs?\s+(\d+)\s+Actions?\)/gi, (_, n) => {
+    activationCost = parseInt(n, 10);
+    return '';
+  });
+
+  return { name: s.trim(), uses, activationCost };
+}
 
 /** Replace Unicode minus/dash variants with ASCII hyphen so Foundry accepts formulas. */
 function cleanFormula(s: string): string {
