@@ -5,6 +5,8 @@ import { ItemBuilder } from '../modules/ItemBuilder.js';
 import { JournalBuilder } from '../modules/JournalBuilder.js';
 import { NpcBuilder } from '../modules/NpcBuilder.js';
 import { ParsedChapter } from '../types.js';
+import { AiLookup } from '../modules/AiLookup.js';
+import { estimateCost } from '../modules/AiCostEstimate.js';
 
 export class ImportAdventureWindow extends (foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2,
@@ -51,7 +53,9 @@ export class ImportAdventureWindow extends (foundry.applications.api.HandlebarsA
       }
     }
 
-    return { proxyUrl, proxyAvailable };
+    const aiEnabled = AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
+    const costRows = aiEnabled ? [...estimateCost(20), ...estimateCost(50)] : [];
+    return { proxyUrl, proxyAvailable, aiEnabled, costRows };
   }
 
   async close(options?: object): Promise<this> {

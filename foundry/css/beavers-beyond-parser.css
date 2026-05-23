@@ -108,6 +108,53 @@
   padding: 0 4px;
 }
 
+/* ── AI cost estimate block ─────────────────────────────────────────────────── */
+
+.bbp-ai-cost {
+  font-size: 0.78em;
+  color: var(--color-text-dark-secondary, #666);
+  background: var(--color-bg-option, #f5f5f5);
+  border: 1px solid var(--color-border-light-primary, #ddd);
+  border-radius: 3px;
+  padding: 5px 8px;
+}
+
+.bbp-ai-cost-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.bbp-ai-cost-label i {
+  margin-right: 4px;
+}
+
+.bbp-cost-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.bbp-cost-table th,
+.bbp-cost-table td {
+  padding: 1px 6px;
+  text-align: left;
+}
+
+.bbp-cost-table th {
+  color: var(--color-text-dark-secondary, #888);
+  font-weight: normal;
+  font-size: 0.9em;
+}
+
+.bbp-cost-table td:not(:first-child) {
+  text-align: right;
+}
+
+.bbp-cost-table th:not(:first-child) {
+  text-align: right;
+}
+
 /* ── Stat Block (rendered inside journal pages) ─────── */
 .bbp-stat-block {
   background: #fdf1dc;

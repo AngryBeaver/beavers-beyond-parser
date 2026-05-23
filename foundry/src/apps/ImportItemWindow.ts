@@ -3,6 +3,8 @@ import { BeyondFetcher } from '../modules/BeyondFetcher.js';
 import { StatBlockParser } from '../modules/StatBlockParser.js';
 import { SpellParser } from '../modules/SpellParser.js';
 import { ItemBuilder } from '../modules/ItemBuilder.js';
+import { AiLookup } from '../modules/AiLookup.js';
+import { estimateCost } from '../modules/AiCostEstimate.js';
 
 export class ImportItemWindow extends (foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2,
@@ -49,7 +51,9 @@ export class ImportItemWindow extends (foundry.applications.api.HandlebarsApplic
       }
     }
 
-    return { proxyUrl, proxyAvailable };
+    const aiEnabled = AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
+    const costRows = aiEnabled ? estimateCost(1) : [];
+    return { proxyUrl, proxyAvailable, aiEnabled, costRows };
   }
 
   async close(options?: object): Promise<this> {

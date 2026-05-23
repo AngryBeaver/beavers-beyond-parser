@@ -20,6 +20,20 @@
     <p class="notes">You can optionally paste the HTML instead of a D&amp;D Beyond URL.</p>
   </div>
 
+  {{#if aiEnabled}}
+  <div class="bbp-ai-cost">
+    <span class="bbp-ai-cost-label"><i class="fa-solid fa-robot"></i> AI cost estimate</span>
+    <table class="bbp-cost-table">
+      <thead><tr><th></th><th>Claude</th><th>Local</th></tr></thead>
+      <tbody>
+        {{#each costRows}}
+        <tr><td>{{this.label}}</td><td>{{this.claude}}</td><td>{{this.local}}</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  {{/if}}
+
   <p class="bbp-status">—</p>
 
   <button type="button" data-action="import" class="bbp-full-btn">

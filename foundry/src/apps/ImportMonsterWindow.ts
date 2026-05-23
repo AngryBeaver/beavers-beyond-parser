@@ -2,6 +2,8 @@ import { NAMESPACE, SETTINGS } from '../definitions.js';
 import { BeyondFetcher } from '../modules/BeyondFetcher.js';
 import { StatBlockParser } from '../modules/StatBlockParser.js';
 import { NpcBuilder } from '../modules/NpcBuilder.js';
+import { AiLookup } from '../modules/AiLookup.js';
+import { estimateCost } from '../modules/AiCostEstimate.js';
 
 export class ImportMonsterWindow extends (foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2,
@@ -48,7 +50,9 @@ export class ImportMonsterWindow extends (foundry.applications.api.HandlebarsApp
       }
     }
 
-    return { proxyUrl, proxyAvailable };
+    const aiEnabled = AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
+    const costRows = aiEnabled ? estimateCost(1) : [];
+    return { proxyUrl, proxyAvailable, aiEnabled, costRows };
   }
 
   async close(options?: object): Promise<this> {
