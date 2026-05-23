@@ -1,4 +1,4 @@
-import { ParsedSpell, ParsedStatBlock } from '../types.js';
+import { ParsedChapter, ParsedSpell, ParsedStatBlock } from '../types.js';
 import { NAMESPACE, SETTINGS } from '../definitions.js';
 import { StatBlockParser } from './StatBlockParser.js';
 import { SpellParser } from './SpellParser.js';
@@ -100,6 +100,60 @@ export class ItemBuilder {
     return getOrCreateWorldSpellItem(name, parsed, folderId);
   }
 
+  /**
+   * Scan all chapter page HTML for /spells/ links and register any spell
+   * not already in spellNameToItemId.  Call this before JournalBuilder.build()
+   * so that narrative spell links get rewritten to @UUID references.
+   */
+  static async importSpellsFromChapters(
+    chapters: ParsedChapter[],
+    spellNameToItemId: Map<string, string>,
+  ): Promise<void> {
+    const seen = new Set<string>(spellNameToItemId.keys());
+    const folderId = await getSpellFolder();
+
+    const register = async (name: string) => {
+      const key = name.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      const packUuid = await findSpellInPacks(name);
+      if (packUuid) {
+        spellNameToItemId.set(key, packUuid);
+        return;
+      }
+      const { id } = await getOrCreateWorldSpellItem(name, undefined, folderId);
+      if (id) spellNameToItemId.set(key, `Item.${id}`);
+    };
+
+    for (const chapter of chapters) {
+      for (const page of chapter.pages) {
+        const doc = new DOMParser().parseFromString(page.content, 'text/html');
+        for (const a of Array.from(doc.querySelectorAll<HTMLAnchorElement>('a[href]'))) {
+          const href = a.getAttribute('href') ?? '';
+          let pathname: string;
+          try {
+            pathname = href.startsWith('http') ? new URL(href).pathname : href.split('#')[0];
+          } catch {
+            continue;
+          }
+          if (!pathname.includes('/spells/')) continue;
+
+          const slug = pathname.split('/').filter(Boolean).pop() ?? '';
+          if (!slug) continue;
+          const nameFromSlug = slug.replace(/^\d+-/, '').replace(/-/g, ' ');
+          const nameFromText = a.textContent?.trim() ?? '';
+
+          // Register under display text (canonical name) and slug-derived name.
+          // rewriteLinks tries nameFromSlug first then text, so both keys are needed.
+          if (nameFromText) await register(nameFromText);
+          if (nameFromSlug && nameFromSlug.toLowerCase() !== nameFromText.toLowerCase()) {
+            await register(nameFromSlug);
+          }
+        }
+      }
+    }
+  }
+
   /** Parse "At will:" / "N/day each:" lines from plain text. */
   static parseSpellLists = parseSpellLists;
 }
@@ -147,15 +201,14 @@ async function importAllSpellsInternal(
           for (const spellName of spells) await register(spellName);
         }
 
-        // Individual spell attack entries: "Shocking Grasp (Cantrip). Melee Spell Attack:…"
+        // Individual spell attack entries — only real spells carry a /spells/ link.
+        // Custom monster actions ("Fire Ray. Ranged Spell Attack:") have no such link.
         if (/(?:melee|ranged)\s+spell\s+attack/i.test(text)) {
-          const rawName =
-            scratch.querySelector('strong')?.textContent?.trim().replace(/\.$/, '') ?? '';
-          const cleanName = rawName
-            .replace(/\s*\(cantrip\)/i, '')
-            .trim()
-            .toLowerCase();
-          if (cleanName) await register(cleanName);
+          const spellLink = scratch.querySelector<HTMLAnchorElement>('a[href*="/spells/"]');
+          if (spellLink) {
+            const cleanName = (spellLink.textContent?.trim() ?? '').toLowerCase();
+            if (cleanName) await register(cleanName);
+          }
         }
       }
     }

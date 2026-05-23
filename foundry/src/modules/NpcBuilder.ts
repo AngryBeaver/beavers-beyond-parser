@@ -96,6 +96,16 @@ const SECTION_ACTIVATION: Record<string, string> = {
   'mythic actions': 'legendary',
 };
 
+const FULL_ABILITY_MAP: Record<string, string> = {
+  strength: 'str', dexterity: 'dex', constitution: 'con',
+  intelligence: 'int', wisdom: 'wis', charisma: 'cha',
+};
+
+const AREA_TYPE_MAP: Record<string, string> = {
+  sphere: 'sphere', emanation: 'sphere', cone: 'cone',
+  cube: 'cube', cylinder: 'cylinder', line: 'line',
+};
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export class NpcBuilder {
@@ -336,33 +346,43 @@ async function buildItemsFromEntry(
   const text = scratch.body.textContent ?? '';
 
   const nameEl = scratch.querySelector('strong');
-  const name = nameEl?.textContent?.trim().replace(/\.$/, '') ?? '';
-  if (!name) return [];
+  const rawName = nameEl?.textContent?.trim().replace(/\.$/, '') ?? '';
+  if (!rawName) return [];
+  const usageMatch = rawName.match(/\s*\((\d+)\/day\)/i);
+  const dailyLimit = usageMatch ? parseInt(usageMatch[1], 10) : 0;
+  const name = rawName.replace(/\s*\(\d+\/day\)/i, '').trim();
 
   const descHtml = `<p>${entryHtml}</p>`;
 
-  // Spell attacks — source from pack/world item, fall back to weapon-type
+  // Spell attacks — only entries with a /spells/ link are real compendium spells.
+  // Custom monster actions like "Fire Ray. Ranged Spell Attack:" have no such link → weapon.
   const isMeleeSpell = /melee\s+spell\s+attack/i.test(text);
   const isRangedSpell = /ranged\s+spell\s+attack/i.test(text);
   if (isMeleeSpell || isRangedSpell) {
-    const cleanName = name.replace(/\s*\(cantrip\)/i, '').trim();
-    const spellItem = await ItemBuilder.getSpellForActor(cleanName, 'atwill', 0, spellNameToItemId);
-    if (spellItem) return [spellItem];
-    return [buildSpellAttackItem(name, text, descHtml, isMeleeSpell)];
+    const spellLink = scratch.querySelector<HTMLAnchorElement>('a[href*="/spells/"]');
+    if (spellLink) {
+      // Real spell — use link text as canonical name (avoids "(Cantrip)" from <strong>)
+      const spellName = spellLink.textContent?.trim() ?? name;
+      const spellItem = await ItemBuilder.getSpellForActor(spellName, 'atwill', 0, spellNameToItemId);
+      if (spellItem) return [spellItem];
+      return [buildAttackItem(spellName, entryHtml, isMeleeSpell, 'spell')];
+    }
+    // No spell link → custom weapon attack (Fire Ray, Claw, etc.)
+    return [buildAttackItem(name, entryHtml, isMeleeSpell, 'weapon')];
   }
 
   // Weapon attacks
   const isMelee = /melee\s+weapon\s+attack/i.test(text);
   const isRanged = /ranged\s+weapon\s+attack/i.test(text);
   if (isMelee || isRanged) {
-    return [buildWeaponItem(name, text, descHtml, isMelee)];
+    return [buildAttackItem(name, entryHtml, isMelee, 'weapon')];
   }
 
   // Spellcasting feature — keep the feat item + add each spell from pack/world items
   const spellLists = ItemBuilder.parseSpellLists(text);
   if (spellLists.length > 0) {
     const result: Record<string, unknown>[] = [];
-    result.push(buildFeatItem(name, descHtml, activationType, isPassive));
+    result.push(buildFeatItem(name, descHtml, activationType, isPassive, dailyLimit));
     const seen = new Set<string>();
     for (const { method, limit, spells } of spellLists) {
       for (const spellName of spells) {
@@ -380,27 +400,61 @@ async function buildItemsFromEntry(
     return result;
   }
 
-  return [buildFeatItem(name, descHtml, activationType, isPassive)];
+  const saveM = text.match(
+    /DC\s+(\d+)\s+(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+saving\s+throw/i,
+  );
+  if (saveM) {
+    return [buildSaveItem(name, descHtml, activationType, saveM, text, dailyLimit)];
+  }
+
+  return [buildFeatItem(name, descHtml, activationType, isPassive, dailyLimit)];
 }
 
-// ── Spell attack fallback item ────────────────────────────────────────────────
+// ── Attack item (weapons and spell-attack fallbacks) ──────────────────────────
 
-function buildSpellAttackItem(
+function buildAttackItem(
   name: string,
-  text: string,
-  descHtml: string,
+  entryHtml: string,
   isMelee: boolean,
+  classification: 'weapon' | 'spell',
 ): Record<string, unknown> {
-  const attackM = text.match(/([+-]\d+)\s+to\s+hit/i);
-  const attackBonus = attackM ? attackM[1].replace('+', '') : '0';
+  const scratch = new DOMParser().parseFromString(`<p>${entryHtml}</p>`, 'text/html');
+  const text = scratch.body.textContent ?? '';
 
-  const damageM = text.match(/[Hh]it.*?(\d+)\s*\(([^)]+)\)\s+([\w]+)\s+damage/);
-  const baseWeaponDamage = damageM
-    ? {
-        custom: { enabled: true, formula: cleanFormula(damageM[2].trim()) },
-        types: [DAMAGE_TYPE_MAP[damageM[3].toLowerCase()] ?? damageM[3].toLowerCase()],
-      }
-    : {};
+  // Attack bonus — DDB encodes it in data-dicenotation span; fall back to regex
+  const hitSpan = scratch.querySelector<HTMLElement>('[data-rolltype="to hit"]');
+  const attackBonus = hitSpan
+    ? (hitSpan.textContent?.trim().replace(/^\+/, '') ?? '0')
+    : (text.match(/([+-]\d+)\s+to\s+hit/i)?.[1]?.replace('+', '') ?? '0');
+
+  // Damage — prefer data-rolltype span (exact formula + type), fall back to regex
+  const dmgSpan = scratch.querySelector<HTMLElement>('[data-rolltype="damage"]');
+  let damageBase: Record<string, unknown>;
+  if (dmgSpan) {
+    const formula = cleanFormula(dmgSpan.getAttribute('data-dicenotation') ?? '');
+    const rawType = dmgSpan.getAttribute('data-rolldamagetype') ?? '';
+    const dmgType = DAMAGE_TYPE_MAP[rawType.toLowerCase()] ?? rawType.toLowerCase();
+    damageBase = {
+      number: null,
+      denomination: null,
+      bonus: '',
+      types: dmgType ? [dmgType] : [],
+      custom: { enabled: true, formula },
+      scaling: { mode: '', number: null, formula: '' },
+    };
+  } else {
+    const m = text.match(/[Hh]it.*?(\d+)\s*\(([^)]+)\)\s+([\w]+)\s+damage/);
+    damageBase = m
+      ? {
+          number: null,
+          denomination: null,
+          bonus: '',
+          types: [DAMAGE_TYPE_MAP[m[3].toLowerCase()] ?? m[3].toLowerCase()],
+          custom: { enabled: true, formula: cleanFormula(m[2].trim()) },
+          scaling: { mode: '', number: null, formula: '' },
+        }
+      : { number: null, denomination: null, bonus: '', types: [], custom: { enabled: false, formula: '' }, scaling: { mode: '', number: null, formula: '' } };
+  }
 
   const reachM = text.match(/reach\s+(\d+)\s+ft/i);
   const rangeM = text.match(/range\s+(\d+)(?:\/(\d+))?\s+ft/i);
@@ -410,15 +464,16 @@ function buildSpellAttackItem(
     name,
     type: 'weapon',
     system: {
-      description: { value: descHtml },
+      description: { value: `<p>${entryHtml}</p>` },
       equipped: true,
       proficient: null,
       type: { value: 'natural' },
-      damage: { base: baseWeaponDamage },
+      properties: new Set<string>(),
+      damage: { base: damageBase },
       range: {
-        reach: reachM ? parseInt(reachM[1], 10) : isMelee ? 5 : undefined,
-        value: rangeM ? parseInt(rangeM[1], 10) : undefined,
-        long: rangeM?.[2] ? parseInt(rangeM[2], 10) : undefined,
+        reach: reachM ? parseInt(reachM[1], 10) : isMelee ? 5 : null,
+        value: rangeM ? parseInt(rangeM[1], 10) : null,
+        long: rangeM?.[2] ? parseInt(rangeM[2], 10) : null,
         units: 'ft',
       },
       activities: {
@@ -428,7 +483,7 @@ function buildSpellAttackItem(
           attack: {
             bonus: attackBonus,
             flat: true,
-            type: { value: isMelee ? 'melee' : 'ranged', classification: 'spell' },
+            type: { value: isMelee ? 'melee' : 'ranged', classification },
           },
           damage: { includeBase: true, parts: [] },
         },
@@ -437,58 +492,71 @@ function buildSpellAttackItem(
   };
 }
 
-// ── Weapon item ───────────────────────────────────────────────────────────────
+// ── Save item ─────────────────────────────────────────────────────────────────
 
-function buildWeaponItem(
+function buildSaveItem(
   name: string,
-  text: string,
   descHtml: string,
-  isMelee: boolean,
+  activationType: string | null,
+  saveMatch: RegExpMatchArray,
+  text: string,
+  dailyLimit: number,
 ): Record<string, unknown> {
-  const attackM = text.match(/([+-]\d+)\s+to\s+hit/i);
-  const attackBonus = attackM ? attackM[1].replace('+', '') : '0';
+  const dc = parseInt(saveMatch[1], 10);
+  const ability = FULL_ABILITY_MAP[saveMatch[2].toLowerCase()] ?? 'dex';
 
-  const damageM = text.match(/[Hh]it.*?(\d+)\s*\(([^)]+)\)\s+([\w]+)\s+damage/);
-  const baseWeaponDamage = damageM
+  // Damage: "taking 28 (8d6) lightning damage"
+  const dmgM = text.match(/taking\s+\d+\s+\(([^)]+)\)\s+([\w]+)\s+damage/i);
+  const parts: Record<string, unknown>[] = [];
+  if (dmgM) {
+    const formula = cleanFormula(dmgM[1].trim());
+    const dmgType = DAMAGE_TYPE_MAP[dmgM[2].toLowerCase()] ?? dmgM[2].toLowerCase();
+    const diceM = formula.match(/^(\d+)d(\d+)(?:\s*([+-]\s*\d+))?$/i);
+    if (diceM) {
+      parts.push({
+        number: parseInt(diceM[1], 10),
+        denomination: parseInt(diceM[2], 10),
+        bonus: diceM[3]?.replace(/\s/g, '') ?? '',
+        types: dmgType ? [dmgType] : [],
+      });
+    }
+  }
+
+  const onSave = /half\s+as\s+much/i.test(text) ? 'half' : 'none';
+
+  // Template: "20-foot-radius sphere" or "10-foot cone"
+  const sphereM = text.match(/(\d+)[\s-]foot[\s-]radius\s+(sphere|emanation)/i);
+  const shapeM = !sphereM ? text.match(/(\d+)[\s-]foot[\s-](cone|cube|cylinder|line)/i) : null;
+  const templateMatch = sphereM ?? shapeM;
+  const template = templateMatch
     ? {
-        custom: { enabled: true, formula: cleanFormula(damageM[2].trim()) },
-        types: [DAMAGE_TYPE_MAP[damageM[3].toLowerCase()] ?? damageM[3].toLowerCase()],
+        type: AREA_TYPE_MAP[templateMatch[2].toLowerCase()] ?? templateMatch[2].toLowerCase(),
+        size: String(parseInt(templateMatch[1], 10)),
+        units: 'ft',
       }
-    : {};
-
-  const reachM = text.match(/reach\s+(\d+)\s+ft/i);
-  const rangeM = text.match(/range\s+(\d+)(?:\/(\d+))?\s+ft/i);
+    : null;
 
   const activityId = foundry.utils.randomID();
-  return {
-    name,
-    type: 'weapon',
-    system: {
-      description: { value: descHtml },
-      equipped: true,
-      proficient: null,
-      type: { value: 'natural' },
-      damage: { base: baseWeaponDamage },
-      range: {
-        reach: reachM ? parseInt(reachM[1], 10) : isMelee ? 5 : undefined,
-        value: rangeM ? parseInt(rangeM[1], 10) : undefined,
-        long: rangeM?.[2] ? parseInt(rangeM[2], 10) : undefined,
-        units: 'ft',
-      },
-      activities: {
-        [activityId]: {
-          type: 'attack',
-          activation: { type: 'action', value: 1 },
-          attack: {
-            bonus: attackBonus,
-            flat: true,
-            type: { value: isMelee ? 'melee' : 'ranged', classification: 'weapon' },
-          },
-          damage: { includeBase: true, parts: [] },
-        },
-      },
+  const activity: Record<string, unknown> = {
+    type: 'save',
+    activation: { type: activationType ?? 'action', value: 1 },
+    save: {
+      ability: [ability],
+      dc: { calculation: '', formula: String(dc) },
     },
+    damage: { parts, onSave },
+    ...(template ? { target: { template, affects: {} } } : {}),
   };
+
+  const system: Record<string, unknown> = {
+    description: { value: descHtml },
+    activities: { [activityId]: activity },
+    ...(dailyLimit > 0
+      ? { uses: { max: String(dailyLimit), spent: 0, recovery: [{ period: 'day', type: 'recoverAll' }] } }
+      : {}),
+  };
+
+  return { name, type: 'feat', system };
 }
 
 // ── Feat item ─────────────────────────────────────────────────────────────────
@@ -498,6 +566,7 @@ function buildFeatItem(
   descHtml: string,
   activationType: string | null,
   isPassive: boolean,
+  dailyLimit: number = 0,
 ): Record<string, unknown> {
   const activities: Record<string, unknown> = {};
 
@@ -515,6 +584,9 @@ function buildFeatItem(
     system: {
       description: { value: descHtml },
       ...(Object.keys(activities).length > 0 ? { activities } : {}),
+      ...(dailyLimit > 0
+        ? { uses: { max: String(dailyLimit), spent: 0, recovery: [{ period: 'day', type: 'recoverAll' }] } }
+        : {}),
     },
   };
 }

@@ -87,6 +87,62 @@ export class JournalBuilder {
   }
 }
 
+/**
+ * Convert a DDB .stat-block-background element into clean, readable HTML
+ * suitable for a Foundry journal page.  Used when the corresponding actor
+ * was not imported (so @Embed is not available).
+ */
+function renderStatBlock(el: Element): string {
+  const parts: string[] = ['<section class="stat-block">'];
+  let sectionDividerAdded = false;
+
+  for (const child of Array.from(el.children)) {
+    const cls = child.className ?? '';
+
+    if (cls.includes('Stat-Block-Title')) {
+      parts.push(`<h4>${child.textContent?.trim() ?? ''}</h4>`);
+    } else if (cls.includes('Stat-Block-Metadata')) {
+      parts.push(`<p><em>${child.textContent?.trim() ?? ''}</em></p><hr>`);
+    } else if ((child as HTMLElement).classList?.contains('stat-block-ability-scores')) {
+      const stats = Array.from(child.querySelectorAll('.stat-block-ability-scores-stat'));
+      if (stats.length > 0) {
+        const ths = stats
+          .map(
+            (s) =>
+              `<th>${s.querySelector('.stat-block-ability-scores-heading')?.textContent?.trim() ?? ''}</th>`,
+          )
+          .join('');
+        const tds = stats
+          .map((s) => {
+            const score =
+              s.querySelector('.stat-block-ability-scores-score')?.textContent?.trim() ?? '';
+            const mod =
+              s.querySelector('.stat-block-ability-scores-modifier')?.textContent?.trim() ?? '';
+            return `<td>${score} ${mod}</td>`;
+          })
+          .join('');
+        parts.push(
+          `<table><thead><tr>${ths}</tr></thead><tbody><tr>${tds}</tr></tbody></table><hr>`,
+        );
+      }
+    } else if (cls.includes('Stat-Block-Heading')) {
+      if (!sectionDividerAdded) {
+        parts.push('<hr>');
+        sectionDividerAdded = true;
+      }
+      parts.push(`<p><strong>${child.textContent?.trim() ?? ''}</strong></p>`);
+    } else if (cls.includes('Stat-Block-Data')) {
+      // innerHTML preserved — spell/monster links inside are rewritten by Pass 2
+      parts.push(`<p>${child.innerHTML}</p>`);
+    } else if (cls.includes('Stat-Block-Body') || cls.includes('Stat-Block-Hanging')) {
+      parts.push(`<p>${child.innerHTML}</p>`);
+    }
+  }
+
+  parts.push('</section>');
+  return parts.join('\n');
+}
+
 function normalizeAnchor(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -121,6 +177,48 @@ function rewriteLinks(
   const doc = new DOMParser().parseFromString(html, 'text/html');
   let changed = false;
 
+  // Pass 1: inline stat blocks — must run before anchor rewriting so the title
+  // link hasn't been replaced yet, and so any links inside the rendered HTML
+  // are picked up by the anchor pass below.
+  for (const div of Array.from(
+    doc.querySelectorAll<HTMLElement>('.stat-block-background, .more-info'),
+  )) {
+    const isStatBlock = div.classList.contains('stat-block-background');
+    const isMonsterMoreInfo =
+      !isStatBlock && div.classList.contains('more-info') && !!div.querySelector('.mon-stat-block');
+    if (!isStatBlock && !isMonsterMoreInfo) continue;
+
+    const titleLink =
+      div.querySelector<HTMLAnchorElement>('[class*="Stat-Block-Title"] a') ??
+      div.querySelector<HTMLAnchorElement>('.mon-stat-block__name-link');
+
+    if (titleLink) {
+      const href = titleLink.getAttribute('href') ?? '';
+      let pathname = '';
+      try {
+        pathname = href.startsWith('http') ? new URL(href).pathname : href.split('#')[0];
+      } catch { /* ignore */ }
+
+      const actorUuid = pathname ? monsterPathToActorId.get(pathname) : undefined;
+      if (actorUuid) {
+        const name = titleLink.textContent?.trim() ?? '';
+        div.replaceWith(doc.createTextNode(`@Embed[${actorUuid}]{${name}}`));
+        changed = true;
+        continue;
+      }
+    }
+
+    // Fallback for the newer stat-block-background format: render as clean HTML
+    // so the journal page is still readable even if the actor wasn't imported.
+    if (isStatBlock) {
+      const temp = doc.createElement('div');
+      temp.innerHTML = renderStatBlock(div);
+      div.replaceWith(...Array.from(temp.childNodes));
+      changed = true;
+    }
+  }
+
+  // Pass 2: anchor links
   for (const a of Array.from(doc.querySelectorAll('a[href]'))) {
     if (a.getAttribute('aria-hidden') === 'true') continue;
     const href = a.getAttribute('href') ?? '';

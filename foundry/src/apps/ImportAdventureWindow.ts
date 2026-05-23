@@ -1,6 +1,7 @@
 import { NAMESPACE, SETTINGS } from '../definitions.js';
 import { BeyondFetcher } from '../modules/BeyondFetcher.js';
 import { BeyondParser } from '../modules/BeyondParser.js';
+import { ItemBuilder } from '../modules/ItemBuilder.js';
 import { JournalBuilder } from '../modules/JournalBuilder.js';
 import { NpcBuilder } from '../modules/NpcBuilder.js';
 import { ParsedChapter } from '../types.js';
@@ -95,6 +96,8 @@ export class ImportAdventureWindow extends (foundry.applications.api.HandlebarsA
         adventure.title,
         chapters,
       );
+      this._setStatus('Importing spells from journal links…');
+      await ItemBuilder.importSpellsFromChapters(chapters, spellNameToItemId);
       this._setStatus('Building journals…');
       await JournalBuilder.build(
         adventure.title,
