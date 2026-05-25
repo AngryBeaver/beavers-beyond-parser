@@ -1,4 +1,4 @@
-<form class="bbp-form">
+<form class="standard-form">
 
   {{#if proxyAvailable}}
   <div class="form-group">
@@ -13,18 +13,41 @@
   </div>
   {{/if}}
 
-  {{#if aiEnabled}}
-  <div class="bbp-ai-cost">
-    <span class="bbp-ai-cost-label"><i class="fa-solid fa-robot"></i> AI cost estimate</span>
+  {{#if aiCost}}
+  <fieldset class="bbp-cost-estimate">
+    <legend>AI Cost Estimate</legend>
     <table class="bbp-cost-table">
-      <thead><tr><th></th><th>Claude</th><th>Local</th></tr></thead>
       <tbody>
-        {{#each costRows}}
-        <tr><td>{{this.label}}</td><td>{{this.claude}}</td><td>{{this.local}}</td></tr>
+        <tr><td class="bbp-cost-section" colspan="2">{{aiCost.perUnitHeader}}</td></tr>
+        <tr>
+          <td class="bbp-cost-label">Text input (all passes)</td>
+          <td class="bbp-cost-value">{{aiCost.inputTokens}}</td>
+        </tr>
+        <tr>
+          <td class="bbp-cost-label">Output (max, all passes)</td>
+          <td class="bbp-cost-value">{{aiCost.outputTokens}}</td>
+        </tr>
+        <tr>
+          <td class="bbp-cost-label">Cost per monster (Claude)</td>
+          <td class="bbp-cost-value">{{aiCost.costPerUnit}}</td>
+        </tr>
+        {{#each aiCost.totals}}
+        <tr><td class="bbp-cost-section" colspan="2">{{this.header}}</td></tr>
+        <tr>
+          <td class="bbp-cost-label">{{this.claudeModel}}</td>
+          <td class="bbp-cost-value">
+            {{this.claudeTotal}}
+            <span class="bbp-cost-rate">({{this.claudeRate}})</span>
+          </td>
+        </tr>
+        <tr>
+          <td class="bbp-cost-label">LocalAI</td>
+          <td class="bbp-cost-value">Free</td>
+        </tr>
         {{/each}}
       </tbody>
     </table>
-  </div>
+  </fieldset>
   {{/if}}
 
   <p class="bbp-status">—</p>

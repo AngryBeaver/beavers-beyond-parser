@@ -1,4 +1,4 @@
-import { COMPENDIUM_ITEM_PACK_PRIORITY, NAMESPACE, SETTINGS } from '../definitions.js';
+import { PRIMARY_PACK_MODULES, LEGACY_PACK_MODULES } from '../definitions.js';
 
 // ── T1.2 — Valid item types ───────────────────────────────────────────────────
 
@@ -32,27 +32,42 @@ function stripHtml(html: string): string {
 
 /** Build the resolved pack priority list at runtime. */
 function resolvedPackList(): string[] {
-  const primary = COMPENDIUM_ITEM_PACK_PRIORITY.slice(0, 3); // core books
-  const legacy = COMPENDIUM_ITEM_PACK_PRIORITY.slice(3);     // dnd5e.*
+  const primarySet = new Set(PRIMARY_PACK_MODULES);
+  const legacySet = new Set(LEGACY_PACK_MODULES);
 
-  // User packs from the MONSTER_PACKS setting, not already in primary/legacy
-  const userPacksSetting = (game.settings.get(NAMESPACE, SETTINGS.MONSTER_PACKS) as string) ?? '';
-  const userPacks = userPacksSetting
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s && !primary.includes(s) && !legacy.includes(s));
+  const primary: string[] = [];
+  const extra: string[] = [];
+  const legacy: string[] = [];
 
-  // All remaining active Item packs not yet in any list
-  const knownSet = new Set([...primary, ...userPacks, ...legacy]);
-  const extraPacks: string[] = [];
-  for (const pack of (game.packs as any)) {
-    if (pack.metadata?.type === 'Item' && !knownSet.has(pack.collection)) {
-      extraPacks.push(pack.collection);
-      knownSet.add(pack.collection);
-    }
+  for (const pack of (game.packs as any).contents as any[]) {
+    if (pack.metadata?.type !== 'Item') continue;
+    const mod = (pack.collection as string).split('.')[0];
+    if (primarySet.has(mod)) primary.push(pack.collection);
+    else if (legacySet.has(mod)) legacy.push(pack.collection);
+    else extra.push(pack.collection);
   }
 
-  return [...primary, ...userPacks, ...extraPacks, ...legacy];
+  return [...primary, ...extra, ...legacy];
+}
+
+// ── lookupImg ─────────────────────────────────────────────────────────────────
+
+/** Return the image for the first compendium entry whose name matches, using the index only. */
+export async function lookupImg(name: string): Promise<string | null> {
+  const orderedPacks = resolvedPackList();
+  const nameLower = name.toLowerCase();
+  for (const packId of orderedPacks) {
+    const pack = (game.packs as any).get(packId);
+    if (!pack) continue;
+    try {
+      const index = await pack.getIndex();
+      const entry = (index as any).find((e: any) => e.name?.toLowerCase() === nameLower);
+      if (entry?.img) return entry.img as string;
+    } catch {
+      // skip unavailable packs
+    }
+  }
+  return null;
 }
 
 // ── T1.3 — lookupCandidates ───────────────────────────────────────────────────
@@ -160,19 +175,19 @@ export async function findInCompendium(
     const { AiLookup } = await import('./AiLookup.js');
     const allCandidates = dedup([...candidates, ...simpleCandidates]);
 
-    // Pass 3 — semantic match
+    // Pass 3 — classify each candidate; return on first MATCH, hold first PATCH as fallback
+    let patchCandidate: CompendiumCandidate | null = null;
     for (const c of allCandidates) {
       if (!c.descriptionText || !parsedText) continue;
-      if (await AiLookup.semanticMatch(parsedText, c.descriptionText)) {
-        return { item: foundry.utils.deepClone(c.data), img: c.img };
-      }
+      const result = await AiLookup.classifyMatch(parsedText, c.descriptionText);
+      if (result === 'MATCH') return { item: foundry.utils.deepClone(c.data), img: c.img };
+      if (result === 'PATCH' && !patchCandidate) patchCandidate = c;
     }
 
-    // Pass 4 — mechanical patch of best candidate
-    const bestCandidate = allCandidates.find((c) => c.descriptionText);
-    if (bestCandidate) {
-      const patched = await AiLookup.patchMechanics(bestCandidate.data, parsedText);
-      if (patched) return { item: patched, img: bestCandidate.img };
+    // Pass 4 — patch the best PATCH candidate
+    if (patchCandidate) {
+      const patched = await AiLookup.patchMechanics(patchCandidate.data, parsedText);
+      if (patched) return { item: patched, img: patchCandidate.img };
     }
   }
 

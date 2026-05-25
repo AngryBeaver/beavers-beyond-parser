@@ -3,12 +3,6 @@
   overflow-y: auto;
 }
 
-#beavers-beyond-parser .bbp-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 #beavers-beyond-parser .bbp-url-input {
   width: 100%;
   box-sizing: border-box;
@@ -19,12 +13,6 @@
 }
 
 /* ── Import Monster window ──────────────────────────────────────────────────── */
-
-#beavers-beyond-monster .bbp-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
 
 #beavers-beyond-monster .bbp-url-input,
 #beavers-beyond-monster .bbp-paste-area {
@@ -78,12 +66,6 @@
 
 /* ── Import Items window ────────────────────────────────────────────────────── */
 
-#beavers-beyond-item .bbp-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 #beavers-beyond-item .bbp-url-input,
 #beavers-beyond-item .bbp-paste-area {
   width: 100%;
@@ -110,49 +92,46 @@
 
 /* ── AI cost estimate block ─────────────────────────────────────────────────── */
 
-.bbp-ai-cost {
+.bbp-cost-estimate {
+  padding: 2px 8px 6px;
   font-size: 0.78em;
-  color: var(--color-text-dark-secondary, #666);
-  background: var(--color-bg-option, #f5f5f5);
-  border: 1px solid var(--color-border-light-primary, #ddd);
-  border-radius: 3px;
-  padding: 5px 8px;
 }
 
-.bbp-ai-cost-label {
-  display: block;
+.bbp-cost-estimate legend {
+  padding: 0 4px;
+  font-size: 1em;
   font-weight: 600;
-  margin-bottom: 3px;
 }
 
-.bbp-ai-cost-label i {
+.bbp-cost-estimate legend i {
   margin-right: 4px;
 }
 
 .bbp-cost-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95em;
 }
 
-.bbp-cost-table th,
 .bbp-cost-table td {
-  padding: 1px 6px;
+  padding: 1px 0;
   text-align: left;
+  vertical-align: top;
 }
 
-.bbp-cost-table th {
-  color: var(--color-text-dark-secondary, #888);
-  font-weight: normal;
-  font-size: 0.9em;
+.bbp-cost-section {
+  font-style: italic;
+  opacity: 0.7;
+  padding-top: 4px !important;
 }
 
-.bbp-cost-table td:not(:first-child) {
+.bbp-cost-value {
   text-align: right;
+  white-space: nowrap;
 }
 
-.bbp-cost-table th:not(:first-child) {
-  text-align: right;
+.bbp-cost-rate {
+  font-size: 0.8em;
+  opacity: 0.7;
 }
 
 /* ── Stat Block (rendered inside journal pages) ─────── */

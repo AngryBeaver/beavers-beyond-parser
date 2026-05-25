@@ -13,25 +13,6 @@ Hooks.once('init', () => {
     default: 'http://localhost:3001',
   });
 
-  game.settings.register(NAMESPACE, SETTINGS.MONSTER_PACKS, {
-    name: 'Monster Compendium Packs',
-    hint: 'Comma-separated compendium pack IDs to search before creating a new monster actor. Order matters — first match wins.',
-    scope: 'world',
-    config: true,
-    type: String,
-    default:
-      'dnd-monster-manual.actors,dnd-dungeon-masters-guide.actors,dnd5e.actors24,dnd5e.monsters',
-  });
-
-  game.settings.register(NAMESPACE, SETTINGS.SPELL_PACKS, {
-    name: 'Spell Compendium Packs',
-    hint: 'Comma-separated compendium pack IDs to search before creating a new spell item. Order matters — first match wins.',
-    scope: 'world',
-    config: true,
-    type: String,
-    default: 'dnd-players-handbook.spells,dnd5e.spells24,dnd5e.spells',
-  });
-
   game.settings.register(NAMESPACE, SETTINGS.AI_SUPPORT_ENABLED, {
     name: 'Enable AI Support',
     hint: 'Uses beavers-ai-assistant to semantically match and patch compendium items. Requires the beavers-ai-assistant module to be active and configured.',
@@ -47,9 +28,10 @@ Hooks.once('init', () => {
     label: 'Import Adventure',
     hint: 'Open the D&D Beyond adventure importer.',
     icon: 'fas fa-file-import',
-    type: class {
+    type: class extends (foundry.applications.api.ApplicationV2 as any) {
       render() {
         ImportAdventureWindow.open();
+        return this;
       }
     } as any,
     restricted: true,

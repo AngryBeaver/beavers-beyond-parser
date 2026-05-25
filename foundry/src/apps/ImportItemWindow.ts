@@ -52,8 +52,8 @@ export class ImportItemWindow extends (foundry.applications.api.HandlebarsApplic
     }
 
     const aiEnabled = AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
-    const costRows = aiEnabled ? estimateCost(1) : [];
-    return { proxyUrl, proxyAvailable, aiEnabled, costRows };
+    const aiCost = aiEnabled ? estimateCost(1) : null;
+    return { proxyUrl, proxyAvailable, aiCost };
   }
 
   async close(options?: object): Promise<this> {

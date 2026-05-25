@@ -1,20 +1,24 @@
 import { NAMESPACE, SETTINGS } from '../definitions.js';
 
-const SEMANTIC_SYSTEM = `You are a D&D 5e rules expert comparing two ability descriptions.
-Ignore: formatting differences, bold/italic markup, punctuation, whitespace,
-flavour text that adds no game mechanic.
-Return NO if ANY mechanical value differs: attack bonus, damage dice or formula,
-save DC, save ability, damage type, range, duration, area size, number of uses,
-conditions applied.
-Respond with exactly one word: YES or NO.`;
+const SEMANTIC_SYSTEM = `You are a D&D 5e rules expert. Compare two item descriptions and return exactly one word.
+
+MATCH  — Same ability with equivalent mechanics. Ignore wording, formatting, or flavour differences.
+PATCH  — Same ability and the same set of effects, but one or more numeric values differ
+         (damage dice, save DC, range, duration, uses, damage type, attack bonus).
+         Every effect present in one must also be present in the other — no extra or missing
+         conditions, secondary effects, or mechanics.
+REJECT — Different abilities entirely, OR one description has an effect, condition, or mechanic
+         the other lacks.
+
+When in doubt, return REJECT.`;
 
 const PATCH_SYSTEM = `You are a D&D 5e Foundry VTT expert.
-You will receive a Foundry Item data object (JSON) and a target description text.
-Identify every game-mechanical value in the item data that differs from the target
-description (attack bonus, damage formula, save DC, range, uses.max, etc.).
-Return ONLY a JSON object with dot-notation field paths as keys and the correct
-values from the target description as values.
-Example: { "system.attack.bonus": "5", "system.save.dc.formula": "14" }
+You will receive a Foundry Item data object (JSON) and a target description.
+The two describe the same ability but with different numeric values.
+Identify every mechanical value in the JSON that differs from the target description
+(damage formula, save DC, range, duration, uses.max, attack bonus, damage type, etc.).
+Return ONLY a JSON object mapping dot-notation field paths to their correct values.
+Example: { "system.damage.parts": [["2d8", "fire"]], "system.save.dc.formula": "14" }
 If nothing needs changing, return {}.`;
 
 function aiService(): { call(s: string, u: string, o?: Record<string, unknown>): Promise<{ content: string }> } | null {
@@ -38,15 +42,18 @@ export const AiLookup = {
     return !!(game as any)?.['beavers-ai-assistant']?.AiService?.isConfigured();
   },
 
-  async semanticMatch(parsedText: string, descriptionText: string): Promise<boolean> {
+  async classifyMatch(parsedText: string, descriptionText: string): Promise<'MATCH' | 'PATCH' | 'REJECT'> {
     const svc = aiService();
-    if (!svc) return false;
+    if (!svc) return 'REJECT';
     try {
       const userPrompt = `Description A:\n${parsedText}\n\nDescription B:\n${descriptionText}`;
       const { content } = await svc.call(SEMANTIC_SYSTEM, userPrompt, { max_tokens: 10, temperature: 0 });
-      return content.trim().toUpperCase().startsWith('YES');
+      const word = content.trim().toUpperCase().split(/\s/)[0];
+      if (word === 'MATCH') return 'MATCH';
+      if (word === 'PATCH') return 'PATCH';
+      return 'REJECT';
     } catch {
-      return false;
+      return 'REJECT';
     }
   },
 

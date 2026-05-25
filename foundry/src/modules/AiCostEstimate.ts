@@ -1,24 +1,36 @@
 import { AiLookup } from './AiLookup.js';
 
-export interface CostRow {
-  label: string;
-  claude: string;
-  local: string;
+export interface TotalRow {
+  header: string;
+  claudeModel: string;
+  claudeTotal: string;
+  claudeRate: string;
 }
 
-// Cost per monster: semantic (15 calls) + patch (3 calls), worst-case.
-const COST_PER_MONSTER: Record<string, number> = {
-  sonnet: 0.030,
-  haiku: 0.008,
-  opus: 0.100,
+export interface CostEstimate {
+  perUnitHeader: string;
+  inputTokens: string;
+  outputTokens: string;
+  costPerUnit: string;
+  totals: TotalRow[];
+}
+
+// Approximate token usage per monster (all features, worst-case AI path)
+const CALLS_PER_MONSTER = 15;
+const INPUT_TOKENS  = 5_000;
+const OUTPUT_TOKENS = 700;
+
+const MODEL_META: Record<string, { name: string; inputRate: number; outputRate: number; rateLabel: string }> = {
+  sonnet: { name: 'Claude Sonnet', inputRate: 3,   outputRate: 15, rateLabel: '$3 + $15 per 1M tokens' },
+  haiku:  { name: 'Claude Haiku',  inputRate: 0.8, outputRate: 4,  rateLabel: '$0.80 + $4 per 1M tokens' },
+  opus:   { name: 'Claude Opus',   inputRate: 15,  outputRate: 75, rateLabel: '$15 + $75 per 1M tokens' },
 };
 
 function resolveModelKey(): string {
-  const modelRaw = ((game as any).settings?.get('beavers-ai-assistant', 'claudeModel') as string) ?? '';
-  const model = modelRaw.toLowerCase();
-  if (model.includes('haiku')) return 'haiku';
-  if (model.includes('opus')) return 'opus';
-  return 'sonnet'; // default / fallback
+  const raw = ((game as any).settings?.get('beavers-ai-assistant', 'claudeModel') as string ?? '').toLowerCase();
+  if (raw.includes('haiku')) return 'haiku';
+  if (raw.includes('opus'))  return 'opus';
+  return 'sonnet';
 }
 
 function formatCost(usd: number): string {
@@ -26,21 +38,28 @@ function formatCost(usd: number): string {
   return `~$${usd.toFixed(2)}`;
 }
 
-export function estimateCost(monsterCount: number): CostRow[] {
-  if (!AiLookup.isAvailable() || !AiLookup.isEnabled()) return [];
+function formatTokens(n: number): string {
+  return n >= 1000 ? `~${(n / 1000).toFixed(0)} 000` : `~${n}`;
+}
 
-  const isLocal =
-    ((game as any).settings?.get('beavers-ai-assistant', 'aiProvider') as string) === 'local-ai';
+export function estimateCost(...counts: number[]): CostEstimate | null {
+  if (!AiLookup.isAvailable() || !AiLookup.isEnabled()) return null;
 
-  const costPerMonster = isLocal ? 0 : COST_PER_MONSTER[resolveModelKey()];
-  const total = costPerMonster * monsterCount;
+  const meta        = MODEL_META[resolveModelKey()];
+  const costPerUnit = (INPUT_TOKENS * meta.inputRate + OUTPUT_TOKENS * meta.outputRate) / 1_000_000;
 
-  const label =
-    monsterCount === 1
-      ? '~1 monster'
-      : monsterCount <= 25
-        ? `Small adventure (~${monsterCount} monsters)`
-        : `Full campaign (~${monsterCount} monsters)`;
+  const totals: TotalRow[] = counts.map((count) => ({
+    header:      `Total (× ${count} monster${count === 1 ? '' : 's'})`,
+    claudeModel: meta.name,
+    claudeTotal: formatCost(costPerUnit * count),
+    claudeRate:  meta.rateLabel,
+  }));
 
-  return [{ label, claude: isLocal ? '$0.00' : formatCost(total), local: '$0.00' }];
+  return {
+    perUnitHeader: `Per monster (~${CALLS_PER_MONSTER} AI calls)`,
+    inputTokens:   `${formatTokens(INPUT_TOKENS)} tokens`,
+    outputTokens:  `${formatTokens(OUTPUT_TOKENS)} tokens`,
+    costPerUnit:   formatCost(costPerUnit),
+    totals,
+  };
 }

@@ -1,5 +1,5 @@
 import { ParsedChapter, ParsedSpell, ParsedStatBlock } from '../types.js';
-import { NAMESPACE, SETTINGS } from '../definitions.js';
+import { PRIMARY_PACK_MODULES, LEGACY_PACK_MODULES } from '../definitions.js';
 import { StatBlockParser } from './StatBlockParser.js';
 import { SpellParser } from './SpellParser.js';
 
@@ -330,21 +330,38 @@ async function getOrCreateSpellFolder(): Promise<string | null> {
 
 // ── Compendium lookup ─────────────────────────────────────────────────────────
 
-async function findSpellInPacks(spellName: string): Promise<string | null> {
-  const setting = (game.settings.get(NAMESPACE, SETTINGS.SPELL_PACKS) as string) ?? '';
-  const packIds = setting
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+function resolvedSpellPackList(): any[] {
+  const primarySet = new Set(PRIMARY_PACK_MODULES);
+  const legacySet = new Set(LEGACY_PACK_MODULES);
 
+  const primary: any[] = [];
+  const extra: any[] = [];
+  const legacy: any[] = [];
+
+  for (const pack of (game.packs as any).contents as any[]) {
+    if (pack.documentName !== 'Item') continue;
+    const mod = (pack.collection as string).split('.')[0];
+    if (primarySet.has(mod)) primary.push(pack);
+    else if (legacySet.has(mod)) legacy.push(pack);
+    else extra.push(pack);
+  }
+
+  primary.sort((a, b) =>
+    PRIMARY_PACK_MODULES.indexOf(a.collection.split('.')[0]) -
+    PRIMARY_PACK_MODULES.indexOf(b.collection.split('.')[0]),
+  );
+
+  return [...primary, ...extra, ...legacy];
+}
+
+async function findSpellInPacks(spellName: string): Promise<string | null> {
   const nameLower = spellName.toLowerCase();
-  for (const packId of packIds) {
+  const ordered = resolvedSpellPackList();
+  for (const pack of ordered) {
     try {
-      const pack = (game.packs as any).get(packId);
-      if (!pack) continue;
       const index = await pack.getIndex();
       const entry = (index as any).find((e: any) => e.name?.toLowerCase() === nameLower);
-      if (entry) return `Compendium.${packId}.Item.${entry._id}`;
+      if (entry) return `Compendium.${pack.collection}.Item.${entry._id}`;
     } catch {
       // skip unavailable/broken packs
     }
@@ -356,19 +373,7 @@ async function findSpellInCompendium(name: string): Promise<Record<string, unkno
   if (!(game.packs as any)?.contents) return null;
   const nameLower = name.toLowerCase();
 
-  const configured = ((game.settings.get(NAMESPACE, SETTINGS.SPELL_PACKS) as string) ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const PRIORITY = configured.length ? configured : ['dnd-players-handbook.spells', 'dnd5e.spells'];
-
-  const allPacks = (game.packs as any).contents as any[];
-  const ordered: any[] = [
-    ...PRIORITY.map((id) => (game.packs as any).get(id)).filter(Boolean),
-    ...allPacks.filter((p: any) => p.documentName === 'Item' && !PRIORITY.includes(p.collection)),
-  ];
-
-  for (const pack of ordered) {
+  for (const pack of resolvedSpellPackList()) {
     try {
       const index = await pack.getIndex();
       const entry = (index as any).find((e: any) => e.name?.toLowerCase() === nameLower);

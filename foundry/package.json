@@ -3,7 +3,7 @@
   "title": "Beaver's Beyond Parser",
   "version": "0.1.0",
   "description": "Parse D&D Beyond adventures into Foundry VTT journals.",
-  "devDir": "c:\\vtts\\v14.361\\Data\\modules",
+  "devDir": "c:\\vtts\\v14.363\\Data\\modules",
   "main": "src/beavers-beyond-parser.js",
   "scripts": {
     "typecheck": "tsc --noEmit",

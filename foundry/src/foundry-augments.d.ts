@@ -27,7 +27,5 @@ declare const game: BeaversBeyondGame;
 
 interface SettingConfig {
   'beavers-beyond-parser.proxyUrl': string;
-  'beavers-beyond-parser.monsterPacks': string;
-  'beavers-beyond-parser.spellPacks': string;
   'beavers-beyond-parser.aiSupportEnabled': boolean;
 }

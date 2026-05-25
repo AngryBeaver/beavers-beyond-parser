@@ -13,7 +13,7 @@ export class ImportAdventureWindow extends (foundry.applications.api.HandlebarsA
 ) as any) {
   static DEFAULT_OPTIONS = {
     id: 'beavers-beyond-parser',
-    window: { title: "Beaver's Beyond Parser", resizable: true },
+    window: { title: 'Import Adventures from D&D Beyond', resizable: true },
     position: { width: 480, height: 260 },
     actions: {
       import: ImportAdventureWindow._onImport,
@@ -54,8 +54,8 @@ export class ImportAdventureWindow extends (foundry.applications.api.HandlebarsA
     }
 
     const aiEnabled = AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
-    const costRows = aiEnabled ? [...estimateCost(20), ...estimateCost(50)] : [];
-    return { proxyUrl, proxyAvailable, aiEnabled, costRows };
+    const aiCost = aiEnabled ? estimateCost(20, 50) : null;
+    return { proxyUrl, proxyAvailable, aiCost };
   }
 
   async close(options?: object): Promise<this> {

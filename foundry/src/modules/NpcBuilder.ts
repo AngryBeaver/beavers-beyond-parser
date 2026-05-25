@@ -1,9 +1,8 @@
 import { ParsedChapter, ParsedStatBlock } from '../types.js';
-import { NAMESPACE, SETTINGS } from '../definitions.js';
 import { BeyondFetcher } from './BeyondFetcher.js';
 import { StatBlockParser } from './StatBlockParser.js';
 import { ItemBuilder } from './ItemBuilder.js';
-import { findInCompendium } from './CompendiumLookup.js';
+import { findInCompendium, lookupImg } from './CompendiumLookup.js';
 import { AiLookup } from './AiLookup.js';
 
 // ── Mapping tables ────────────────────────────────────────────────────────────
@@ -230,20 +229,14 @@ export class NpcBuilder {
 // ── Pack / folder helpers ─────────────────────────────────────────────────────
 
 async function findInPacks(monsterName: string): Promise<string | null> {
-  const setting = (game.settings.get(NAMESPACE, SETTINGS.MONSTER_PACKS) as string) ?? '';
-  const packIds = setting
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
   const nameLower = monsterName.toLowerCase();
-  for (const packId of packIds) {
+  const allPacks = (game.packs as any).contents as any[];
+  for (const pack of allPacks) {
+    if (pack.metadata?.type !== 'Actor') continue;
     try {
-      const pack = (game.packs as any).get(packId);
-      if (!pack) continue;
       const index = await pack.getIndex();
       const entry = (index as any).find((e: any) => e.name?.toLowerCase() === nameLower);
-      if (entry) return `Compendium.${packId}.Actor.${entry._id}`;
+      if (entry) return `Compendium.${pack.collection}.Actor.${entry._id}`;
     } catch {
       // skip unavailable/broken packs
     }
@@ -347,16 +340,28 @@ async function buildItemsFromEntry(
   const scratch = new DOMParser().parseFromString(`<p>${entryHtml}</p>`, 'text/html');
   const text = scratch.body.textContent ?? '';
 
-  const nameEl = scratch.querySelector('strong');
+  const nameEl = scratch.querySelector('em, strong');
   const rawName = nameEl?.textContent?.trim().replace(/\.$/, '') ?? '';
   if (!rawName) return [];
   const { name, uses, activationCost } = parseNameParens(rawName);
 
   const descHtml = `<p>${entryHtml}</p>`;
 
-  // Compendium lookup — prefer a real compendium item over a freshly-built one
-  const useAi = AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
-  const { item: compendiumItem, img: fallbackImg } = await findInCompendium(name, text, { useAi });
+  // Weapon attacks: compendium descriptions never match stat block attack text.
+  // Skip findInCompendium entirely — only fetch the image from the pack index.
+  const isMelee = /melee\s+weapon\s+attack/i.test(text);
+  const isRanged = /ranged\s+weapon\s+attack/i.test(text);
+
+  let compendiumItem: Record<string, unknown> | null = null;
+  let fallbackImg: string | null = null;
+
+  if (isMelee || isRanged) {
+    fallbackImg = await lookupImg(name);
+  } else {
+    const useAi = AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
+    ({ item: compendiumItem, img: fallbackImg } = await findInCompendium(name, text, { useAi }));
+  }
+
   if (compendiumItem) {
     if (uses) {
       const sys = (compendiumItem.system as Record<string, unknown>) ?? {};
@@ -389,13 +394,9 @@ async function buildItemsFromEntry(
       // No spell link → custom weapon attack (Fire Ray, Claw, etc.)
       built = [buildAttackItem(name, entryHtml, isMeleeSpell, 'weapon', uses, activationCost)];
     }
+  } else if (isMelee || isRanged) {
+    built = [buildAttackItem(name, entryHtml, isMelee, 'weapon', uses, activationCost)];
   } else {
-    // Weapon attacks
-    const isMelee = /melee\s+weapon\s+attack/i.test(text);
-    const isRanged = /ranged\s+weapon\s+attack/i.test(text);
-    if (isMelee || isRanged) {
-      built = [buildAttackItem(name, entryHtml, isMelee, 'weapon', uses, activationCost)];
-    } else {
       // Spellcasting feature — keep the feat item + add each spell from pack/world items
       const spellLists = ItemBuilder.parseSpellLists(text);
       if (spellLists.length > 0) {
@@ -424,7 +425,6 @@ async function buildItemsFromEntry(
           ? [buildSaveItem(name, descHtml, activationType, saveM, text, uses, activationCost)]
           : [buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost)];
       }
-    }
   }
 
   if (fallbackImg) {
@@ -534,8 +534,8 @@ function buildSaveItem(
   const dc = parseInt(saveMatch[1], 10);
   const ability = FULL_ABILITY_MAP[saveMatch[2].toLowerCase()] ?? 'dex';
 
-  // Damage: "taking 28 (8d6) lightning damage"
-  const dmgM = text.match(/taking\s+\d+\s+\(([^)]+)\)\s+([\w]+)\s+damage/i);
+  // Damage: "take/takes/taking 28 (8d6) lightning damage" or "or take 44 (8d10) psychic damage"
+  const dmgM = text.match(/tak(?:e|es|ing)\s+\d+\s+\(([^)]+)\)\s+([\w]+)\s+damage/i);
   const parts: Record<string, unknown>[] = [];
   if (dmgM) {
     const formula = cleanFormula(dmgM[1].trim());
@@ -551,7 +551,7 @@ function buildSaveItem(
     }
   }
 
-  const onSave = /half\s+as\s+much/i.test(text) ? 'half' : 'none';
+  const onSave = /\bhalf\b.*?\bdamage\b|\bdamage\b.*?\bhalf\b/i.test(text) ? 'half' : 'none';
 
   // Template: "20-foot-radius sphere" or "10-foot cone"
   const sphereM = text.match(/(\d+)[\s-]foot[\s-]radius\s+(sphere|emanation)/i);
