@@ -396,6 +396,7 @@ function parseSpellLists(text: string): Array<{ method: string; limit: number; s
   for (const line of text.split(/[\n\r]+/)) {
     const trimmed = line.trim();
 
+    // "At will: spell1, spell2"  (innate spellcasting)
     const atWill = trimmed.match(/^at will\s*:\s*(.+)/i);
     if (atWill) {
       const spells = splitSpellList(atWill[1]);
@@ -403,10 +404,28 @@ function parseSpellLists(text: string): Array<{ method: string; limit: number; s
       continue;
     }
 
+    // "N/day each: spell1, spell2"  (innate spellcasting)
     const perDay = trimmed.match(/^(\d+)\s*\/\s*day(?:\s+each)?\s*:\s*(.+)/i);
     if (perDay) {
       const spells = splitSpellList(perDay[2]);
       if (spells.length) result.push({ method: 'innate', limit: parseInt(perDay[1], 10), spells });
+      continue;
+    }
+
+    // "Cantrips (at will): spell1, spell2"  (prepared spellcasting)
+    const cantrips = trimmed.match(/^cantrips?\s*(?:\([^)]*\))?\s*:\s*(.+)/i);
+    if (cantrips) {
+      const spells = splitSpellList(cantrips[1]);
+      if (spells.length) result.push({ method: 'atwill', limit: 0, spells });
+      continue;
+    }
+
+    // "1st level (4 slots): spell1, spell2"  (prepared spellcasting)
+    const levelSlots = trimmed.match(/^\d+(?:st|nd|rd|th)\s+level\s*(?:\([^)]*\))?\s*:\s*(.+)/i);
+    if (levelSlots) {
+      const spells = splitSpellList(levelSlots[1]);
+      if (spells.length) result.push({ method: 'prepared', limit: 0, spells });
+      continue;
     }
   }
 
@@ -416,7 +435,7 @@ function parseSpellLists(text: string): Array<{ method: string; limit: number; s
 function splitSpellList(text: string): string[] {
   return text
     .split(',')
-    .map((s) => s.trim().toLowerCase())
+    .map((s) => s.trim().toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').trim())
     .filter(Boolean);
 }
 

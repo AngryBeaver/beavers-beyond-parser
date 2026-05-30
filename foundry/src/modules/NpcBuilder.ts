@@ -2,7 +2,7 @@ import { ParsedChapter, ParsedStatBlock } from '../types.js';
 import { BeyondFetcher } from './BeyondFetcher.js';
 import { StatBlockParser } from './StatBlockParser.js';
 import { ItemBuilder } from './ItemBuilder.js';
-import { findInCompendium, lookupImg } from './CompendiumLookup.js';
+import { findInCompendium, lookupImg, AiStats } from './CompendiumLookup.js';
 import { AiLookup } from './AiLookup.js';
 
 // ── Mapping tables ────────────────────────────────────────────────────────────
@@ -121,14 +121,17 @@ export class NpcBuilder {
    * Returns both UUID maps so callers can rewrite journal + spell links.
    */
   static async build(
-    adventureTitle: string,
     chapters: ParsedChapter[],
+    onProgress?: (msg: string) => void,
   ): Promise<{
     monsterPathToActorId: Map<string, string>;
     spellNameToItemId: Map<string, string>;
+    aiStats: AiStats;
+    actorsCreated: number;
   }> {
     const monsterPathToActorId = new Map<string, string>();
     const emptySpellMap = new Map<string, string>();
+    const aiStats: AiStats = { calls: 0, match: 0, patch: 0, iconSuggest: 0, iconMiss: 0 };
 
     // Collect unique monster refs from inline stat-block stubs + <a> links in pages
     const monsterRefMap = new Map<string, string>(); // pathname → name
@@ -161,19 +164,21 @@ export class NpcBuilder {
     }
 
     if (monsterRefMap.size === 0) {
-      return { monsterPathToActorId, spellNameToItemId: emptySpellMap };
+      return { monsterPathToActorId, spellNameToItemId: emptySpellMap, aiStats, actorsCreated: 0 };
     }
 
     const dndBeyondFolderId = await findOrCreateDndBeyondActorFolder();
     const pendingCreations: Array<{ originalHref: string; sb: ParsedStatBlock }> = [];
 
     for (const [monsterHref, name] of monsterRefMap) {
+      onProgress?.(`Building actors: ${name}: checking packs…`);
       const packUuid = await findInPacks(name);
       if (packUuid) {
         monsterPathToActorId.set(monsterHref, packUuid);
         continue;
       }
 
+      onProgress?.(`Building actors: ${name}: get StatBlock…`);
       try {
         const html = await BeyondFetcher.fetchPage(`https://www.dndbeyond.com${monsterHref}`);
         const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -187,7 +192,7 @@ export class NpcBuilder {
     }
 
     if (pendingCreations.length === 0 && monsterPathToActorId.size === 0) {
-      return { monsterPathToActorId, spellNameToItemId: emptySpellMap };
+      return { monsterPathToActorId, spellNameToItemId: emptySpellMap, aiStats, actorsCreated: 0 };
     }
 
     // Phase 1 — import spells from fetched stat blocks
@@ -196,33 +201,36 @@ export class NpcBuilder {
     );
 
     // Phase 2 — create actors
-    for (const { originalHref, sb } of pendingCreations) {
+    const totalActors = pendingCreations.length;
+    for (let i = 0; i < totalActors; i++) {
+      const { originalHref, sb } = pendingCreations[i];
+      const pct = Math.round((i / totalActors) * 100);
+      const progressWithPct = onProgress
+        ? (msg: string) => onProgress(`${msg} [${pct}%]`)
+        : undefined;
+      onProgress?.(`Building actors: ${sb.name}… [${pct}%]`);
       const actor = (await Actor.create(
-        (await buildActorData(sb, dndBeyondFolderId, spellNameToItemId)) as any,
+        (await buildActorData(sb, dndBeyondFolderId, spellNameToItemId, progressWithPct, aiStats)) as any,
       )) as Actor | null | undefined;
       if (actor?.id) {
         monsterPathToActorId.set(originalHref, `Actor.${actor.id}`);
       }
     }
 
-    if (pendingCreations.length > 0) {
-      ui.notifications?.info(
-        `Created ${pendingCreations.length} NPC(s) for "${adventureTitle}" in Actors → "dndbeyond".`,
-      );
-    }
-
-    return { monsterPathToActorId, spellNameToItemId };
+    return { monsterPathToActorId, spellNameToItemId, aiStats, actorsCreated: pendingCreations.length };
   }
 
-  static async createSingle(sb: ParsedStatBlock, doc?: Document): Promise<void> {
+  static async createSingle(sb: ParsedStatBlock, doc?: Document): Promise<{ aiStats: AiStats }> {
+    const aiStats: AiStats = { calls: 0, match: 0, patch: 0, iconSuggest: 0, iconMiss: 0 };
     const folderId = await findOrCreateDndBeyondActorFolder();
     const { spellNameToItemId } = await ItemBuilder.importAllSpells([sb], doc);
     const actor = (await Actor.create(
-      (await buildActorData(sb, folderId, spellNameToItemId)) as any,
+      (await buildActorData(sb, folderId, spellNameToItemId, undefined, aiStats)) as any,
     )) as Actor | null | undefined;
     if (actor) {
       ui.notifications?.info(`Created NPC "${sb.name}".`);
     }
+    return { aiStats };
   }
 }
 
@@ -264,12 +272,14 @@ async function buildActorData(
   sb: ParsedStatBlock,
   folderId: string | null,
   spellNameToItemId: Map<string, string>,
+  onProgress?: (msg: string) => void,
+  aiStats?: AiStats,
 ): Promise<Record<string, unknown>> {
   const movement = parseMovement(sb.speed);
   const senses = parseSenses(sb);
   const traits = parseTraits(sb);
   const skills = parseSkills(sb);
-  const items = await buildItems(sb, spellNameToItemId);
+  const items = await buildItems(sb, spellNameToItemId, onProgress, aiStats);
 
   return {
     name: sb.name,
@@ -313,22 +323,117 @@ async function buildActorData(
 async function buildItems(
   sb: ParsedStatBlock,
   spellNameToItemId: Map<string, string>,
+  onProgress?: (msg: string) => void,
+  aiStats?: AiStats,
 ): Promise<Record<string, unknown>[]> {
   const items: Record<string, unknown>[] = [];
+
+  // Pre-group all entries across sections so we know the total count upfront.
+  type Grouped = { entryHtml: string; activationType: string | null; isPassive: boolean };
+  const allEntries: Grouped[] = [];
 
   for (const section of sb.sections) {
     const headingLower = section.heading.toLowerCase();
     const activationType = SECTION_ACTIVATION[headingLower] ?? null;
     const isPassive = !activationType && headingLower !== 'actions';
 
-    for (const entryHtml of section.entries) {
-      items.push(
-        ...(await buildItemsFromEntry(entryHtml, activationType, isPassive, spellNameToItemId)),
-      );
+    // DDB renders spellcasting as several consecutive <p> elements: a named header
+    // ("Spellcasting.", "Innate Spellcasting.") followed by nameless spell-list
+    // paragraphs ("At will: …", "Cantrips (at will): …", "1st level (4 slots): …").
+    // Group each nameless paragraph onto the preceding named entry so that
+    // buildItemsFromEntry sees all the /spells/ links in one pass.
+    const grouped: string[] = [];
+    for (const html of section.entries) {
+      const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+      const hasName = !!extractEntryName(doc.body.firstElementChild ?? doc.body);
+      if (!hasName && grouped.length > 0) {
+        grouped[grouped.length - 1] += '\n' + html;
+      } else {
+        grouped.push(html);
+      }
+    }
+
+    for (const entryHtml of grouped) {
+      allEntries.push({ entryHtml, activationType, isPassive });
     }
   }
 
+  for (const { entryHtml, activationType, isPassive } of allEntries) {
+    items.push(
+      ...(await buildItemsFromEntry(entryHtml, activationType, isPassive, spellNameToItemId, sb.name, onProgress, aiStats)),
+    );
+  }
+
   return items;
+}
+
+interface SpellRef {
+  lookup: string;  // bare spell name for compendium lookup
+  display: string; // name + qualifier for the Foundry item ("levitate (self only)")
+}
+
+/**
+ * Extract spells from /spells/ links in a merged spellcasting entry element.
+ * Each line of the text content corresponds to one original paragraph; the
+ * line prefix determines the casting method and slot limit for the links on
+ * that line.  Any parenthetical qualifier immediately following a link
+ * ("(self only)", "(Slaad Form Only)") is captured in SpellRef.display so
+ * the actor item can be named accordingly while the bare name is still used
+ * for compendium lookup.  Returns an empty array when no /spells/ links are found.
+ */
+function extractSpellsFromLinks(
+  el: Element,
+): Array<{ method: string; limit: number; spells: SpellRef[] }> {
+  const allLinks = Array.from(el.querySelectorAll<HTMLAnchorElement>('a[href*="/spells/"]'));
+  if (allLinks.length === 0) return [];
+
+  const result: Array<{ method: string; limit: number; spells: SpellRef[] }> = [];
+  const lines = (el.textContent ?? '').split('\n');
+  let linkIdx = 0;
+
+  for (const line of lines) {
+    if (linkIdx >= allLinks.length) break;
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Determine method and limit from the line prefix
+    let method: string | null = null;
+    let limit = 0;
+    const perDayM = trimmed.match(/^(\d+)\s*\/\s*day(?:\s+each)?\s*:/i);
+    if (/^at will\s*:/i.test(trimmed)) {
+      method = 'atwill';
+    } else if (perDayM) {
+      method = 'innate'; limit = parseInt(perDayM[1], 10);
+    } else if (/^cantrips?\s*(?:\([^)]*\))?\s*:/i.test(trimmed)) {
+      method = 'atwill';
+    } else if (/^\d+(?:st|nd|rd|th)\s+level\s*(?:\([^)]*\))?\s*:/i.test(trimmed)) {
+      method = 'prepared';
+    }
+
+    // Advance through links that appear on this line, capturing qualifiers.
+    const lineLower = trimmed.toLowerCase();
+    const lineSpells: SpellRef[] = [];
+    let searchFrom = 0;
+    while (linkIdx < allLinks.length) {
+      const lt = (allLinks[linkIdx].textContent ?? '').trim().toLowerCase();
+      if (!lt) { linkIdx++; continue; }
+      const ltPos = lineLower.indexOf(lt, searchFrom);
+      if (ltPos === -1) break;
+
+      // Capture any parenthetical qualifier immediately after the link text
+      const afterLink = lineLower.slice(ltPos + lt.length);
+      const qualM = afterLink.match(/^\s*(\([^)]+\))/);
+      const qualifier = qualM ? qualM[1] : '';
+      const display = qualifier ? `${lt} ${qualifier}` : lt;
+
+      if (method !== null) lineSpells.push({ lookup: lt, display });
+      searchFrom = ltPos + lt.length + (qualM?.[0].length ?? 0);
+      linkIdx++;
+    }
+    if (lineSpells.length) result.push({ method: method!, limit, spells: lineSpells });
+  }
+
+  return result;
 }
 
 async function buildItemsFromEntry(
@@ -336,16 +441,33 @@ async function buildItemsFromEntry(
   activationType: string | null,
   isPassive: boolean,
   spellNameToItemId: Map<string, string>,
+  actorName?: string,
+  onProgress?: (msg: string) => void,
+  aiStats?: AiStats,
 ): Promise<Record<string, unknown>[]> {
-  const scratch = new DOMParser().parseFromString(`<p>${entryHtml}</p>`, 'text/html');
-  const text = scratch.body.textContent ?? '';
+  // Use <div> wrapper so that entries merged across multiple paragraphs (joined
+  // with \n by buildItems) are valid HTML — <p> cannot contain block siblings.
+  const scratch = new DOMParser().parseFromString(`<div>${entryHtml}</div>`, 'text/html');
+  const el = scratch.body.firstElementChild ?? scratch.body;
+  const text = el.textContent ?? '';
 
-  const nameEl = scratch.querySelector('em, strong');
-  const rawName = nameEl?.textContent?.trim().replace(/\.$/, '') ?? '';
+  const rawName = extractEntryName(el);
   if (!rawName) return [];
   const { name, uses, activationCost } = parseNameParens(rawName);
 
-  const descHtml = `<p>${entryHtml}</p>`;
+  const progress = (phase: string) => {
+    if (actorName) onProgress?.(`Building actors: ${actorName}: action ${name}: ${phase}`);
+  };
+
+  progress('parse');
+
+  // Strip form-restriction parentheticals for lookup ("Bite (Slaad Form Only)" → "Bite").
+  // parseNameParens already removed usage parens (Recharge, X/Day, Costs X Actions),
+  // so anything remaining in parens is a qualifier that shouldn't affect the lookup.
+  const lookupName = name.replace(/\s*\([^)]+\)/g, '').trim() || name;
+
+  // Build description: each merged segment (separated by \n) gets its own <p>
+  const descHtml = entryHtml.split('\n').map((h) => `<p>${h}</p>`).join('');
 
   // Weapon attacks: compendium descriptions never match stat block attack text.
   // Skip findInCompendium entirely — only fetch the image from the pack index.
@@ -354,12 +476,13 @@ async function buildItemsFromEntry(
 
   let compendiumItem: Record<string, unknown> | null = null;
   let fallbackImg: string | null = null;
+  const useAi = AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
 
   if (isMelee || isRanged) {
-    fallbackImg = await lookupImg(name);
+    fallbackImg = await lookupImg(lookupName);
   } else {
-    const useAi = AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
-    ({ item: compendiumItem, img: fallbackImg } = await findInCompendium(name, text, { useAi }));
+    if (useAi) progress('semantic AI search');
+    ({ item: compendiumItem, img: fallbackImg } = await findInCompendium(lookupName, text, { useAi, aiStats }));
   }
 
   if (compendiumItem) {
@@ -384,7 +507,7 @@ async function buildItemsFromEntry(
   const isMeleeSpell = /melee\s+spell\s+attack/i.test(text);
   const isRangedSpell = /ranged\s+spell\s+attack/i.test(text);
   if (isMeleeSpell || isRangedSpell) {
-    const spellLink = scratch.querySelector<HTMLAnchorElement>('a[href*="/spells/"]');
+    const spellLink = el.querySelector<HTMLAnchorElement>('a[href*="/spells/"]');
     if (spellLink) {
       // Real spell — use link text as canonical name (avoids "(Cantrip)" from <strong>)
       const spellName = spellLink.textContent?.trim() ?? name;
@@ -397,45 +520,84 @@ async function buildItemsFromEntry(
   } else if (isMelee || isRanged) {
     built = [buildAttackItem(name, entryHtml, isMelee, 'weapon', uses, activationCost)];
   } else {
-      // Spellcasting feature — keep the feat item + add each spell from pack/world items
-      const spellLists = ItemBuilder.parseSpellLists(text);
-      if (spellLists.length > 0) {
-        const spellResult: Record<string, unknown>[] = [];
-        spellResult.push(buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost));
-        const seen = new Set<string>();
-        for (const { method, limit, spells } of spellLists) {
+    // Spellcasting feature — /spells/ links are the canonical source; fall back to
+    // text parsing only when no links are present (e.g. older inline stat blocks).
+    const linkGroups = extractSpellsFromLinks(el);
+    const textGroups = linkGroups.length === 0 ? ItemBuilder.parseSpellLists(text) : [];
+
+    if (linkGroups.length > 0 || textGroups.length > 0) {
+      const spellResult: Record<string, unknown>[] = [];
+      spellResult.push(buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost));
+      const seen = new Set<string>();
+
+      if (linkGroups.length > 0) {
+        for (const { method, limit, spells } of linkGroups) {
+          for (const spell of spells) {
+            if (seen.has(spell.lookup)) continue;
+            seen.add(spell.lookup);
+            const spellItem = await ItemBuilder.getSpellForActor(spell.lookup, method, limit, spellNameToItemId);
+            if (spellItem) {
+              if (spell.display !== spell.lookup) {
+                spellItem.name = (spellItem.name as string) + spell.display.slice(spell.lookup.length);
+              }
+              spellResult.push(spellItem);
+            }
+          }
+        }
+      } else {
+        for (const { method, limit, spells } of textGroups) {
           for (const spellName of spells) {
             if (seen.has(spellName)) continue;
             seen.add(spellName);
-            const spellItem = await ItemBuilder.getSpellForActor(
-              spellName,
-              method,
-              limit,
-              spellNameToItemId,
-            );
+            const spellItem = await ItemBuilder.getSpellForActor(spellName, method, limit, spellNameToItemId);
             if (spellItem) spellResult.push(spellItem);
           }
         }
-        built = spellResult;
-      } else {
-        const saveM = text.match(
-          /DC\s+(\d+)\s+(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+saving\s+throw/i,
-        );
-        built = saveM
-          ? [buildSaveItem(name, descHtml, activationType, saveM, text, uses, activationCost)]
-          : [buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost)];
       }
+
+      built = spellResult;
+    } else {
+      const saveM = text.match(
+        /DC\s+(\d+)\s+(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+saving\s+throw/i,
+      );
+      built = saveM
+        ? [buildSaveItem(name, descHtml, activationType, saveM, text, uses, activationCost)]
+        : [buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost)];
+    }
   }
 
   if (fallbackImg) {
     for (const item of built) {
       if (!item.img) item.img = fallbackImg;
     }
+  } else if (useAi && aiStats) {
+    progress('AI icon search');
+    const iconType = (isMelee || isRanged) ? 'weapon' : 'feat';
+    const suggested = await AiLookup.suggestIcon(name, text, aiStats, iconType);
+    if (suggested) {
+      for (const item of built) {
+        if (!item.img) item.img = suggested;
+      }
+    }
   }
   return built;
 }
 
 // ── Attack item (weapons and spell-attack fallbacks) ──────────────────────────
+
+function spanToDamagePart(span: HTMLElement): Record<string, unknown> {
+  const formula = cleanFormula(span.getAttribute('data-dicenotation') ?? '');
+  const rawType = span.getAttribute('data-rolldamagetype') ?? '';
+  const dmgType = DAMAGE_TYPE_MAP[rawType.toLowerCase()] ?? rawType.toLowerCase();
+  return {
+    number: null,
+    denomination: null,
+    bonus: '',
+    types: dmgType ? [dmgType] : [],
+    custom: { enabled: true, formula },
+    scaling: { mode: '', number: null, formula: '' },
+  };
+}
 
 function buildAttackItem(
   name: string,
@@ -454,22 +616,16 @@ function buildAttackItem(
     ? (hitSpan.textContent?.trim().replace(/^\+/, '') ?? '0')
     : (text.match(/([+-]\d+)\s+to\s+hit/i)?.[1]?.replace('+', '') ?? '0');
 
-  // Damage — prefer data-rolltype span (exact formula + type), fall back to regex
-  const dmgSpan = scratch.querySelector<HTMLElement>('[data-rolltype="damage"]');
+  // Damage — all [data-rolltype="damage"] spans; first = base, rest = extra parts
+  const dmgSpans = Array.from(scratch.querySelectorAll<HTMLElement>('[data-rolltype="damage"]'));
   let damageBase: Record<string, unknown>;
-  if (dmgSpan) {
-    const formula = cleanFormula(dmgSpan.getAttribute('data-dicenotation') ?? '');
-    const rawType = dmgSpan.getAttribute('data-rolldamagetype') ?? '';
-    const dmgType = DAMAGE_TYPE_MAP[rawType.toLowerCase()] ?? rawType.toLowerCase();
-    damageBase = {
-      number: null,
-      denomination: null,
-      bonus: '',
-      types: dmgType ? [dmgType] : [],
-      custom: { enabled: true, formula },
-      scaling: { mode: '', number: null, formula: '' },
-    };
+  let extraParts: Record<string, unknown>[];
+
+  if (dmgSpans.length > 0) {
+    damageBase = spanToDamagePart(dmgSpans[0]);
+    extraParts = dmgSpans.slice(1).map(spanToDamagePart);
   } else {
+    // Regex fallback — primary damage
     const m = text.match(/[Hh]it.*?(\d+)\s*\(([^)]+)\)\s+([\w]+)\s+damage/);
     damageBase = m
       ? {
@@ -481,6 +637,22 @@ function buildAttackItem(
           scaling: { mode: '', number: null, formula: '' },
         }
       : { number: null, denomination: null, bonus: '', types: [], custom: { enabled: false, formula: '' }, scaling: { mode: '', number: null, formula: '' } };
+
+    // Regex fallback — additional "plus N (XdY) type damage" parts
+    extraParts = [];
+    const plusRe = /\bplus\s+\d+\s+\(([^)]+)\)\s+([\w]+)\s+damage/gi;
+    let pm: RegExpExecArray | null;
+    while ((pm = plusRe.exec(text)) !== null) {
+      const dmgType = DAMAGE_TYPE_MAP[pm[2].toLowerCase()] ?? pm[2].toLowerCase();
+      extraParts.push({
+        number: null,
+        denomination: null,
+        bonus: '',
+        types: dmgType ? [dmgType] : [],
+        custom: { enabled: true, formula: cleanFormula(pm[1].trim()) },
+        scaling: { mode: '', number: null, formula: '' },
+      });
+    }
   }
 
   const reachM = text.match(/reach\s+(\d+)\s+ft/i);
@@ -512,7 +684,7 @@ function buildAttackItem(
             flat: true,
             type: { value: isMelee ? 'melee' : 'ranged', classification },
           },
-          damage: { includeBase: true, parts: [] },
+          damage: { includeBase: true, parts: extraParts },
         },
       },
       ...(uses ? { uses } : {}),
@@ -819,6 +991,45 @@ function parseSkills(sb: ParsedStatBlock): Record<string, { value: number; abili
     result[entry.key] = { value: profLevel, ability: entry.ability };
   }
   return result;
+}
+
+// ── Entry name extraction ─────────────────────────────────────────────────────
+
+/**
+ * Extract the ability name from a stat-block entry element.
+ *
+ * DDB structures names as one or more <strong> elements (sometimes wrapped in
+ * an <em>), followed by a period that terminates the name:
+ *
+ *   <strong>Multiattack.</strong> The goblin makes…
+ *   <em><strong>Claw.</strong> Melee Weapon Attack:…</em>
+ *   <em><strong>Shadow</strong><strong> Blade.</strong> Melee…</em>
+ *
+ * The function collects <strong> text until it finds a period, recursing into
+ * <em> when encountered.  It stops as soon as non-whitespace plain text appears
+ * after the opening strongs, so later bolded text in the description is ignored.
+ */
+function extractEntryName(el: Element): string {
+  let collected = '';
+  for (const node of Array.from(el.childNodes)) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const child = node as Element;
+      if (child.tagName === 'EM') {
+        const inner = extractEntryName(child);
+        if (inner) return inner;
+      } else if (child.tagName === 'STRONG') {
+        const t = child.textContent ?? '';
+        const dot = t.indexOf('.');
+        if (dot !== -1) return (collected + t.slice(0, dot)).trim();
+        collected += t;
+      } else if (collected) {
+        break;
+      }
+    } else if (node.nodeType === Node.TEXT_NODE && (node.textContent ?? '').trim() && collected) {
+      break;
+    }
+  }
+  return collected.replace(/\.$/, '').trim();
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

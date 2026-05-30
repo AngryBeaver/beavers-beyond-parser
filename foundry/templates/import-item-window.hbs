@@ -14,48 +14,10 @@
   {{/if}}
 
   <div class="form-group">
-    <label>Stat Block HTML</label>
+    <label>Alternative:</label>
     <textarea class="bbp-paste-area" rows="8"
       placeholder="Paste D&amp;D Beyond stat block HTML here…"></textarea>
-    <p class="notes">You can optionally paste the HTML instead of a D&amp;D Beyond URL.</p>
   </div>
-
-  {{#if aiCost}}
-  <fieldset class="bbp-cost-estimate">
-    <legend>AI Cost Estimate</legend>
-    <table class="bbp-cost-table">
-      <tbody>
-        <tr><td class="bbp-cost-section" colspan="2">{{aiCost.perUnitHeader}}</td></tr>
-        <tr>
-          <td class="bbp-cost-label">Text input (all passes)</td>
-          <td class="bbp-cost-value">{{aiCost.inputTokens}}</td>
-        </tr>
-        <tr>
-          <td class="bbp-cost-label">Output (max, all passes)</td>
-          <td class="bbp-cost-value">{{aiCost.outputTokens}}</td>
-        </tr>
-        <tr>
-          <td class="bbp-cost-label">Cost per monster (Claude)</td>
-          <td class="bbp-cost-value">{{aiCost.costPerUnit}}</td>
-        </tr>
-        {{#each aiCost.totals}}
-        <tr><td class="bbp-cost-section" colspan="2">{{this.header}}</td></tr>
-        <tr>
-          <td class="bbp-cost-label">{{this.claudeModel}}</td>
-          <td class="bbp-cost-value">
-            {{this.claudeTotal}}
-            <span class="bbp-cost-rate">({{this.claudeRate}})</span>
-          </td>
-        </tr>
-        <tr>
-          <td class="bbp-cost-label">LocalAI</td>
-          <td class="bbp-cost-value">Free</td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-  </fieldset>
-  {{/if}}
 
   <p class="bbp-status">—</p>
 

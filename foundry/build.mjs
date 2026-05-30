@@ -99,6 +99,15 @@ async function copyDir(src, dest) {
   }
 }
 
+async function copyIconIndexFiles(outputRoot) {
+  const entries = await fsp.readdir(__dirname);
+  await Promise.all(
+    entries
+      .filter((f) => /^vtt\d+-icons\.json$/.test(f))
+      .map((f) => fsp.copyFile(path.join(__dirname, f), path.join(outputRoot, f))),
+  );
+}
+
 async function copyAssets(outputRoot) {
   await Promise.all([
     copyDir(TEMPLATES_DIR, path.join(outputRoot, "templates")),
@@ -106,6 +115,7 @@ async function copyAssets(outputRoot) {
     copyDir(ICONS_DIR, path.join(outputRoot, "icons")),
     fsp.copyFile(path.join(__dirname, "LICENSE"), path.join(outputRoot, "LICENSE")).catch(() => {}),
     fsp.copyFile(path.join(__dirname, "README.md"), path.join(outputRoot, "README.md")).catch(() => {}),
+    copyIconIndexFiles(outputRoot),
   ]);
   console.log(`[assets] → ${outputRoot}`);
 }
@@ -121,6 +131,7 @@ const NON_TS_GLOBS = [
   path.join(__dirname, "icons", "**"),
   path.join(__dirname, "module.json"),
   path.join(__dirname, "package.json"),
+  path.join(__dirname, "vtt*-icons.json"),
   path.join(__dirname, "LICENSE"),
   path.join(__dirname, "README.md"),
 ];
@@ -146,6 +157,9 @@ async function handleNonTsChange(filePath, outputRoot) {
   }
   if (rel === "LICENSE" || rel === "README.md") {
     await fsp.copyFile(filePath, path.join(outputRoot, path.basename(filePath))).catch(console.error);
+  }
+  if (/^vtt\d+-icons\.json$/.test(path.basename(rel))) {
+    await copyIconIndexFiles(outputRoot).catch(console.error);
   }
 }
 

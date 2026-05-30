@@ -14,7 +14,7 @@ export class ImportAdventureWindow extends (foundry.applications.api.HandlebarsA
   static DEFAULT_OPTIONS = {
     id: 'beavers-beyond-parser',
     window: { title: 'Import Adventures from D&D Beyond', resizable: true },
-    position: { width: 480, height: 260 },
+    position: { width: 480, height: 460 },
     actions: {
       import: ImportAdventureWindow._onImport,
     },
@@ -96,20 +96,29 @@ export class ImportAdventureWindow extends (foundry.applications.api.HandlebarsA
       }
 
       this._setStatus('Building actors…');
-      const { monsterPathToActorId, spellNameToItemId } = await NpcBuilder.build(
-        adventure.title,
+      const { monsterPathToActorId, spellNameToItemId, aiStats, actorsCreated } = await NpcBuilder.build(
         chapters,
+        (msg) => this._setStatus(msg),
       );
       this._setStatus('Importing spells from journal links…');
       await ItemBuilder.importSpellsFromChapters(chapters, spellNameToItemId);
       this._setStatus('Building journals…');
-      await JournalBuilder.build(
+      const { journals, pages } = await JournalBuilder.build(
         adventure.title,
         chapters,
         monsterPathToActorId,
         spellNameToItemId,
       );
-      await this.close();
+
+      const iconPart = (aiStats.iconSuggest + aiStats.iconMiss) > 0
+        ? `, ${aiStats.iconSuggest} icon hit(s), ${aiStats.iconMiss} icon miss(es)`
+        : '';
+      const aiPart = aiStats.calls > 0
+        ? ` | AI: ${aiStats.calls} calls, ${aiStats.match} semantic match, ${aiStats.patch} patched${iconPart}`
+        : '';
+      this._setStatus(
+        `Done — ${chapters.length} chapter(s), ${journals} journal(s), ${pages} page(s), ${actorsCreated} actor(s)${aiPart}.`,
+      );
     } catch (err: any) {
       this._setStatus(`Error: ${err.message}`);
       ui.notifications?.error(`Import failed: ${err.message}`);

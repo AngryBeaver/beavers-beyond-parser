@@ -24,6 +24,14 @@ export interface LookupResult {
   img: string | null;
 }
 
+export interface AiStats {
+  calls: number;
+  match: number;
+  patch: number;
+  iconSuggest: number;
+  iconMiss: number;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function stripHtml(html: string): string {
@@ -143,7 +151,7 @@ export function simplifyName(name: string): string | null {
 export async function findInCompendium(
   name: string,
   parsedText: string,
-  options?: { useAi?: boolean },
+  options?: { useAi?: boolean; aiStats?: AiStats },
 ): Promise<LookupResult> {
   // Pass 1 — exact text, original name
   const candidates = await lookupCandidates(name);
@@ -174,20 +182,29 @@ export async function findInCompendium(
   if (options?.useAi) {
     const { AiLookup } = await import('./AiLookup.js');
     const allCandidates = dedup([...candidates, ...simpleCandidates]);
+    const stats = options.aiStats;
 
     // Pass 3 — classify each candidate; return on first MATCH, hold first PATCH as fallback
     let patchCandidate: CompendiumCandidate | null = null;
     for (const c of allCandidates) {
       if (!c.descriptionText || !parsedText) continue;
       const result = await AiLookup.classifyMatch(parsedText, c.descriptionText);
-      if (result === 'MATCH') return { item: foundry.utils.deepClone(c.data), img: c.img };
+      if (stats) stats.calls++;
+      if (result === 'MATCH') {
+        if (stats) stats.match++;
+        return { item: foundry.utils.deepClone(c.data), img: c.img };
+      }
       if (result === 'PATCH' && !patchCandidate) patchCandidate = c;
     }
 
     // Pass 4 — patch the best PATCH candidate
     if (patchCandidate) {
+      if (stats) stats.calls++;
       const patched = await AiLookup.patchMechanics(patchCandidate.data, parsedText);
-      if (patched) return { item: patched, img: patchCandidate.img };
+      if (patched) {
+        if (stats) stats.patch++;
+        return { item: patched, img: patchCandidate.img };
+      }
     }
   }
 

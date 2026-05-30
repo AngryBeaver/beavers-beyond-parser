@@ -11,7 +11,7 @@ export class JournalBuilder {
     chapters: ParsedChapter[],
     monsterPathToActorId: Map<string, string>,
     spellNameToItemId: Map<string, string> = new Map(),
-  ): Promise<void> {
+  ): Promise<{ journals: number; pages: number }> {
     const folder = (await Folder.create({
       name: adventureTitle,
       type: 'JournalEntry',
@@ -83,7 +83,8 @@ export class JournalBuilder {
       await JournalEntryPage.createDocuments(pages, { parent: journal });
     }
 
-    ui.notifications?.info(`Imported "${adventureTitle}" — ${chapters.length} chapter(s) created.`);
+    const totalPages = created.reduce((sum, { chapter }) => sum + chapter.pages.length, 0);
+    return { journals: created.length, pages: totalPages };
   }
 }
 

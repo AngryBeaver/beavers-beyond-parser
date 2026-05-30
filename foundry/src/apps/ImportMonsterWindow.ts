@@ -4,6 +4,7 @@ import { StatBlockParser } from '../modules/StatBlockParser.js';
 import { NpcBuilder } from '../modules/NpcBuilder.js';
 import { AiLookup } from '../modules/AiLookup.js';
 import { estimateCost } from '../modules/AiCostEstimate.js';
+import type { AiStats } from '../modules/CompendiumLookup.js';
 
 export class ImportMonsterWindow extends (foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2,
@@ -82,10 +83,22 @@ export class ImportMonsterWindow extends (foundry.applications.api.HandlebarsApp
         return void this._setStatus('No stat blocks found.');
       }
       this._setStatus(`Creating ${statBlocks.length} actor(s)…`);
+      const totals: AiStats = { calls: 0, match: 0, patch: 0, iconSuggest: 0, iconMiss: 0 };
       for (const sb of statBlocks) {
-        await NpcBuilder.createSingle(sb, doc);
+        const { aiStats } = await NpcBuilder.createSingle(sb, doc);
+        totals.calls += aiStats.calls;
+        totals.match += aiStats.match;
+        totals.patch += aiStats.patch;
+        totals.iconSuggest += aiStats.iconSuggest;
+        totals.iconMiss += aiStats.iconMiss;
       }
-      this._setStatus(`Done — created ${statBlocks.length} actor(s).`);
+      const iconPart = (totals.iconSuggest + totals.iconMiss) > 0
+        ? `, ${totals.iconSuggest} icon hit(s), ${totals.iconMiss} icon miss(es)`
+        : '';
+      const aiPart = totals.calls > 0
+        ? ` | AI: ${totals.calls} calls, ${totals.match} match, ${totals.patch} patched${iconPart}`
+        : '';
+      this._setStatus(`Done — created ${statBlocks.length} actor(s)${aiPart}.`);
     } catch (err: any) {
       this._setStatus(`Error: ${err.message}`);
     }
