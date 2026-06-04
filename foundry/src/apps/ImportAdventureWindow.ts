@@ -3,7 +3,7 @@ import { BeyondFetcher } from '../modules/BeyondFetcher.js';
 import { BeyondParser } from '../modules/BeyondParser.js';
 import { ItemBuilder } from '../modules/ItemBuilder.js';
 import { JournalBuilder } from '../modules/JournalBuilder.js';
-import { NpcBuilder } from '../modules/NpcBuilder.js';
+import { NpcBuilder } from '../modules/monsterBuilder/index.js';
 import { ParsedChapter } from '../types.js';
 import { AiLookup } from '../modules/AiLookup.js';
 import { estimateCost } from '../modules/AiCostEstimate.js';

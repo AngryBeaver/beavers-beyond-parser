@@ -1,0 +1,17 @@
+{
+  "name": "beavers-beyond-parser-ai-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "node validate-monsters.mjs",
+    "validate:goblin": "node validate-monsters.mjs --name Goblin",
+    "validate:limit10": "node validate-monsters.mjs --limit 10",
+    "search": "node search-ddb.mjs",
+    "diff": "node diff-actor.mjs"
+  },
+  "dependencies": {
+    "beavers-voice-transcript-client": "file:../../beavers-ai-assistant/client",
+    "socket.io-client": "^4.8.1"
+  }
+}

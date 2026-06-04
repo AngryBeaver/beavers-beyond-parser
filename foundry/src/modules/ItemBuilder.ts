@@ -47,7 +47,9 @@ export class ItemBuilder {
     limit: number,
     spellNameToItemId: Map<string, string>,
   ): Promise<Record<string, unknown> | null> {
-    const uuid = spellNameToItemId.get(spellName.toLowerCase());
+    let uuid = spellNameToItemId.get(spellName.toLowerCase());
+    // Fallback: search compendium packs directly (used by preview / validation)
+    if (!uuid) uuid = (await findSpellInPacks(spellName)) ?? undefined;
     if (!uuid) return null;
 
     let data: any = null;

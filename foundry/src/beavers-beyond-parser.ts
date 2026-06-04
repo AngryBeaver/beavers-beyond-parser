@@ -2,6 +2,7 @@ import { NAMESPACE, SETTINGS } from './definitions.js';
 import { ImportAdventureWindow } from './apps/ImportAdventureWindow.js';
 import { ImportMonsterWindow } from './apps/ImportMonsterWindow.js';
 import { ImportItemWindow } from './apps/ImportItemWindow.js';
+import { NpcBuilder } from './modules/monsterBuilder/index.js';
 
 Hooks.once('init', () => {
   game.settings.register(NAMESPACE, SETTINGS.PROXY_URL, {
@@ -38,8 +39,13 @@ Hooks.once('init', () => {
   });
 });
 
+const BBP_SOCKET = `module.${NAMESPACE}`;
+
 Hooks.once('ready', () => {
   console.log(`${NAMESPACE} | Ready`);
+
+  // Expose API for other modules (e.g. beavers-ai-assistant socket bridge).
+  (game as any)[NAMESPACE] = { NpcBuilder };
 
   const aiEnabled = game.settings.get(NAMESPACE, SETTINGS.AI_SUPPORT_ENABLED) as boolean;
   if (aiEnabled) {
@@ -53,6 +59,34 @@ Hooks.once('ready', () => {
       );
     }
   }
+
+  // Socket API for external tooling (validation, testing).
+  game.socket.on(BBP_SOCKET, async (data: any) => {
+    if (!game.user.isGM) return;
+    if (!data?.id || !data?.action) return;
+
+    let result: unknown;
+    let error: string | undefined;
+
+    try {
+      switch (data.action) {
+        case 'previewMonsterImport': {
+          const opts = (data.args[1] as { skipAi?: boolean } | undefined) ?? {};
+          result = await NpcBuilder.previewMonsterImport(data.args[0] as string, opts);
+          break;
+        }
+        default:
+          throw new Error(`Unknown action: ${data.action}`);
+      }
+    } catch (e: unknown) {
+      error = (e as Error).message;
+    }
+
+    game.socket.emit(BBP_SOCKET, {
+      id: data.id,
+      ...(error ? { error } : { data: result }),
+    });
+  });
 });
 
 // "Import Adventure" button in the Journal sidebar header

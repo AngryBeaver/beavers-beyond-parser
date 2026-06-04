@@ -1,0 +1,2102 @@
+{
+  "packId": "dnd5e.monsters",
+  "results": [
+    {
+      "name": "Gargoyle",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16868-gargoyle",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Spy",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17021-spy",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Bulette",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16818-bulette",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Drider",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16847-drider",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Merrow",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16956-merrow",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Drow",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17133-drow",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ice Devil",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16931-ice-devil",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Spider",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17018-spider",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Xorn",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17066-xorn",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ancient Bronze Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16778-ancient-bronze-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Octopus",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16968-octopus",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Crocodile",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16880-giant-crocodile",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Gelatinous Cube",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16869-gelatinous-cube",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Erinyes",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16858-erinyes",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Adult White Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16773-adult-white-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Fire Giant",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16862-fire-giant",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Deer",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16839-deer",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Plesiosaurus",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16981-plesiosaurus",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Vulture",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16897-giant-vulture",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Wasp",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16898-giant-wasp",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Swarm of Spiders",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Swarm of Spiders\"",
+      "diffs": []
+    },
+    {
+      "name": "Elk",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16857-elk",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Lizardfolk",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16946-lizardfolk",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Djinni",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16842-djinni",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Nightmare",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16964-nightmare",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Half-Red Dragon Veteran",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16918-half-red-dragon-veteran",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Centaur",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16821-centaur",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Kobold",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16939-kobold",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Storm Giant",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17026-storm-giant",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Vrock",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17047-vrock",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Hobgoblin",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16925-hobgoblin",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Gynosphinx",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16917-gynosphinx",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Wyvern",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17065-wyvern",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Violet Fungus",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17046-violet-fungus",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Warhorse Skeleton",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17050-warhorse-skeleton",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Werewolf",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17057-werewolf",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Adult Brass Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16766-adult-brass-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Young Green Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17073-young-green-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Guardian Naga",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16916-guardian-naga",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Will-o'-Wisp",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Will-o'-Wisp\"",
+      "diffs": []
+    },
+    {
+      "name": "Magmin",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16949-magmin",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Ape",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16873-giant-ape",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Crab",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16833-crab",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Fire Elemental",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16861-fire-elemental",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Weasel",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16899-giant-weasel",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Crocodile",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16834-crocodile",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Swarm of Rats",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17032-swarm-of-rats",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Gibbering Mouther",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16901-gibbering-mouther",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Satyr",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17005-satyr",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Eagle",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16881-giant-eagle",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Hill Giant",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16923-hill-giant",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Bearded Devil",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16803-bearded-devil",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Blood Hawk",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16810-blood-hawk",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Crab",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16879-giant-crab",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Panther",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16976-panther",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Bone Devil",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16813-bone-devil",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Cloud Giant",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16827-cloud-giant",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Copper Dragon Wyrmling",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16831-copper-dragon-wyrmling",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Archmage",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16789-archmage",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "items.missing",
+          "parsed": null,
+          "reference": [
+            "disguise self",
+            "invisibility"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Spirit Naga",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17019-spirit-naga",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Unseen Servant",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Unseen Servant\"",
+      "diffs": []
+    },
+    {
+      "name": "Dust Mephit",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16851-dust-mephit",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Draft Horse",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16844-draft-horse",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Frost Giant",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16867-frost-giant",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Acolyte",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16763-acolyte",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Harpy",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16919-harpy",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Wererat",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17055-wererat",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Thug",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17035-thug",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Knight",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16938-knight",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Black Bear",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16806-black-bear",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Poisonous Snake",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16982-poisonous-snake",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Vampire",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17043-vampire",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Guard",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16915-guard",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Eagle",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16852-eagle",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Pegasus",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16977-pegasus",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "languages.extra",
+          "parsed": [
+            "celestial",
+            "common"
+          ],
+          "reference": null
+        }
+      ]
+    },
+    {
+      "name": "Assassin",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16790-assassin",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "languages.missing",
+          "parsed": null,
+          "reference": [
+            "custom"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Ice Mephit",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16932-ice-mephit",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Wraith",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17064-wraith",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Dire Wolf",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16841-dire-wolf",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Frog",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16866-frog",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Cockatrice",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16828-cockatrice",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Flying Sword",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16865-flying-sword",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Reef Shark",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16994-reef-shark",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Camel",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16819-camel",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Sea Horse",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17009-sea-horse",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Tiger",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17036-tiger",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Young Brass Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17069-young-brass-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Unicorn",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17042-unicorn",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Adult Green Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16770-adult-green-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Noble",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16966-noble",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Grimlock",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16914-grimlock",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Scorpion",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16892-giant-scorpion",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Orc",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16972-orc",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Cloaker",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16826-cloaker",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Tyrannosaurus Rex",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17041-tyrannosaurus-rex",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Flesh Golem",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16863-flesh-golem",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Centipede",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16877-giant-centipede",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Lizard",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16945-lizard",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Black Dragon Wyrmling",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16807-black-dragon-wyrmling",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Azer",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16794-azer",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Toad",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16896-giant-toad",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ghast",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16870-ghast",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Silver Dragon Wyrmling",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17014-silver-dragon-wyrmling",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Veteran",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17045-veteran",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Wereboar",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17054-wereboar",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Dancing Lights (medium)",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Dancing Lights (medium)\"",
+      "diffs": []
+    },
+    {
+      "name": "Baboon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16795-baboon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Druid",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16848-druid",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "languages.missing",
+          "parsed": null,
+          "reference": [
+            "custom"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Hydra",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16929-hydra",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ape",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16788-ape",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Swarm of Centipedes",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Swarm of Centipedes\"",
+      "diffs": []
+    },
+    {
+      "name": "Tarrasque",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17034-tarrasque",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Green Dragon Wyrmling",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16910-green-dragon-wyrmling",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ettin",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16860-ettin",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Dryad",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16849-dryad",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Merfolk",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16955-merfolk",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Swarm of Quippers",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17031-swarm-of-quippers",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Chain Devil",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16822-chain-devil",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Oni",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Oni\"",
+      "diffs": []
+    },
+    {
+      "name": "Raven",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16992-raven",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Efreeti",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16854-efreeti",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Adult Black Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16764-adult-black-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Horned Devil",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16927-horned-devil",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Manticore",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16951-manticore",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Adult Gold Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16769-adult-gold-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Sprite",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17020-sprite",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Shark",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16894-giant-shark",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Jackal",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16936-jackal",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Mammoth",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16950-mammoth",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Lamia",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16941-lamia",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Zombie",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17077-zombie",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Treant",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17037-treant",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Young Bronze Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17070-young-bronze-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Constrictor Snake",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16878-giant-constrictor-snake",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Black Pudding",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16808-black-pudding",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Scout",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17007-scout",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ghoul",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16872-ghoul",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Glabrezu",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16902-glabrezu",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Sea Hag",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17008-sea-hag",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Chuul",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16824-chuul",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Death Dog",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16838-death-dog",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Pony",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16984-pony",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Priest",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16985-priest",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Swarm of Bats",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17028-swarm-of-bats",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Purple Worm",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16987-purple-worm",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Specter",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17017-specter",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Shadow",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17010-shadow",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Young Gold Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17072-young-gold-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Bugbear",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16817-bugbear",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Gnoll",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16904-gnoll",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Pit Fiend",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16979-pit-fiend",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ogre Zombie",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16970-ogre-zombie",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Swarm of Insects",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17029-swarm-of-insects",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Rhinoceros",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16996-rhinoceros",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Flying Snake",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16864-flying-snake",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ancient Blue Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16776-ancient-blue-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Stone Giant",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17024-stone-giant",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Axe Beak",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16793-axe-beak",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Bat",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16875-giant-bat",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Commoner",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16829-commoner",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Boar",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16876-giant-boar",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Warhorse",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17049-warhorse",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Hippogriff",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16924-hippogriff",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Shrieker",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17013-shrieker",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Arcane Sword",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Arcane Sword\"",
+      "diffs": []
+    },
+    {
+      "name": "Goblin",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16907-goblin",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Mummy Lord",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16962-mummy-lord",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Awakened Tree",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16792-awakened-tree",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Constrictor Snake",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16830-constrictor-snake",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Dancing Lights (tiny)",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Dancing Lights (tiny)\"",
+      "diffs": []
+    },
+    {
+      "name": "Steam Mephit",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17022-steam-mephit",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Worg",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17063-worg",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "languages.missing",
+          "parsed": null,
+          "reference": [
+            "custom"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Remorhaz",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16995-remorhaz",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Adult Bronze Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16767-adult-bronze-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Owl",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16889-giant-owl",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Mule",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16960-mule",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Succubus/Incubus",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Succubus/Incubus\"",
+      "diffs": []
+    },
+    {
+      "name": "Rust Monster",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17001-rust-monster",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Weasel",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17052-weasel",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ankheg",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16787-ankheg",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Planetar",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16980-planetar",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "languages.missing",
+          "parsed": null,
+          "reference": [
+            "ALL"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Swarm of Poisonous Snakes",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17030-swarm-of-poisonous-snakes",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Avatar of Death",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Avatar of Death\"",
+      "diffs": []
+    },
+    {
+      "name": "Scorpion",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17006-scorpion",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Clay Golem",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16825-clay-golem",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Mastiff",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16953-mastiff",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Swarm of Wasps",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Swarm of Wasps\"",
+      "diffs": []
+    },
+    {
+      "name": "Giant Fire Beetle",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16883-giant-fire-beetle",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Troll",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17040-troll",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Deep Gnome",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Deep Gnome\"",
+      "diffs": []
+    },
+    {
+      "name": "Homunculus",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16926-homunculus",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Poisonous Snake",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16890-giant-poisonous-snake",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Couatl",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16832-couatl",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "languages.missing",
+          "parsed": null,
+          "reference": [
+            "ALL"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Adult Red Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16771-adult-red-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Hyena",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16886-giant-hyena",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ettercap",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16859-ettercap",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ancient White Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16784-ancient-white-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Brass Dragon Wyrmling",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16814-brass-dragon-wyrmling",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Air Elemental",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16774-air-elemental",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Young Black Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17067-young-black-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Lich",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16943-lich",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "languages.missing",
+          "parsed": null,
+          "reference": [
+            "custom"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Quasit",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16988-quasit",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Sea Horse",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16893-giant-sea-horse",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Hyena",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16930-hyena",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Adult Blue Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16765-adult-blue-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Badger",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16874-giant-badger",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Killer Whale",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16937-killer-whale",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ancient Gold Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16780-ancient-gold-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Owl",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16974-owl",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Imp",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16933-imp",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Swarm of Beetles",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Swarm of Beetles\"",
+      "diffs": []
+    },
+    {
+      "name": "Triceratops",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17039-triceratops",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ogre",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16969-ogre",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Animated Armor",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16786-animated-armor",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Hezrou",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16922-hezrou",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Marilith",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16952-marilith",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Medusa",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16954-medusa",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Young Silver Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17075-young-silver-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Rug of Smothering",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17000-rug-of-smothering",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Wolf Spider",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16900-giant-wolf-spider",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Pseudodragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16986-pseudodragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Vulture",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17048-vulture",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Hawk",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16920-hawk",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Gray Ooze",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16909-gray-ooze",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Gladiator",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16903-gladiator",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Swarm of Ravens",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17033-swarm-of-ravens",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Darkmantle",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16837-darkmantle",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Shambling Mound",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17011-shambling-mound",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Stirge",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17023-stirge",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Awakened Shrub",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16791-awakened-shrub",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Adult Silver Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16772-adult-silver-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ancient Silver Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16783-ancient-silver-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Griffon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16913-griffon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Iron Golem",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16935-iron-golem",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Cat",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16820-cat",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Elk",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16882-giant-elk",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Bronze Dragon Wyrmling",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16815-bronze-dragon-wyrmling",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Polar Bear",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16983-polar-bear",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Lion",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16944-lion",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Basilisk",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16801-basilisk",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Mimic",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16957-mimic",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Duergar",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16850-duergar",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Arcane Hand",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Arcane Hand\"",
+      "diffs": []
+    },
+    {
+      "name": "Hell Hound",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16921-hell-hound",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Dragon Turtle",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16845-dragon-turtle",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Adult Copper Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16768-adult-copper-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Elephant",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16855-elephant",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Blink Dog",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16809-blink-dog",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Otyugh",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16973-otyugh",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Frog",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16884-giant-frog",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Kraken",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16940-kraken",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "languages.extra",
+          "parsed": [
+            "abyssal",
+            "celestial",
+            "infernal",
+            "primordial"
+          ],
+          "reference": null
+        }
+      ]
+    },
+    {
+      "name": "Chimera",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16823-chimera",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Berserker",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16805-berserker",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Dretch",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16846-dretch",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Solar",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17016-solar",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "languages.missing",
+          "parsed": null,
+          "reference": [
+            "ALL"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Boar",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16812-boar",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Phase Spider",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16978-phase-spider",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Sahuagin",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17003-sahuagin",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Deva",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16840-deva",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "languages.missing",
+          "parsed": null,
+          "reference": [
+            "ALL"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Young Blue Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17068-young-blue-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Mage",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16947-mage",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Doppelganger",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16843-doppelganger",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Bandit",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16798-bandit",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Androsphinx",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16785-androsphinx",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Tribal Warrior",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17038-tribal-warrior",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Skeleton",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17015-skeleton",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Gorgon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16908-gorgon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Gold Dragon Wyrmling",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17098-gold-dragon-wyrmling",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "items.missing",
+          "parsed": null,
+          "reference": [
+            "amphibiou",
+            "bite",
+            "breath weapon"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Blue Dragon Wyrmling",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16811-blue-dragon-wyrmling",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Water Elemental",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17051-water-elemental",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Quipper",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16989-quipper",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Invisible Stalker",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16934-invisible-stalker",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Magma Mephit",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16948-magma-mephit",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Badger",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16796-badger",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Werebear",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17053-werebear",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Brown Bear",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16816-brown-bear",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Roc",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16998-roc",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Octopus",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16888-giant-octopus",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ancient Brass Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16777-ancient-brass-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Lizard",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16887-giant-lizard",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Minotaur",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16958-minotaur",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Rat",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Rat\"",
+      "diffs": []
+    },
+    {
+      "name": "Giant Rat",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16891-giant-rat",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ancient Black Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16775-ancient-black-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Young Copper Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17071-young-copper-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Rakshasa",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16990-rakshasa",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Roper",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16999-roper",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Bat",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16802-bat",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Cultist",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16835-cultist",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ghost",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16871-ghost",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Young Red Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17074-young-red-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Fly",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Giant Fly\"",
+      "diffs": []
+    },
+    {
+      "name": "Nalfeshnee",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16963-nalfeshnee",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Bandit Captain",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16799-bandit-captain",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Wight",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17059-wight",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Goat",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16885-giant-goat",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Riding Horse",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16997-riding-horse",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Earth Elemental",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16853-earth-elemental",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Barbed Devil",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16800-barbed-devil",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Green Hag",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16911-green-hag",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Aboleth",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16762-aboleth",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Hunter Shark",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16928-hunter-shark",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Mummy",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16961-mummy",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Grick",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16912-grick",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Saber-Toothed Tiger",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17002-saber-toothed-tiger",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Cult Fanatic",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16836-cult-fanatic",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Arcane Eye",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Arcane Eye\"",
+      "diffs": []
+    },
+    {
+      "name": "Lemure",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16942-lemure",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ancient Copper Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16779-ancient-copper-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Young White Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17076-young-white-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Balor",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16797-balor",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Spider",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16895-giant-spider",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ancient Red Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16782-ancient-red-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "White Dragon Wyrmling",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17058-white-dragon-wyrmling",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Behir",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16804-behir",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ochre Jelly",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16967-ochre-jelly",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Minotaur Skeleton",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16959-minotaur-skeleton",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Night Hag",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16965-night-hag",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Goat",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16906-goat",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Winter Wolf",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17061-winter-wolf",
+      "status": "diff",
+      "diffs": [
+        {
+          "field": "languages.missing",
+          "parsed": null,
+          "reference": [
+            "custom"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Salamander",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17004-salamander",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Wolf",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17062-wolf",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Giant Rat (Diseased)",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Giant Rat (Diseased)\"",
+      "diffs": []
+    },
+    {
+      "name": "Stone Golem",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17025-stone-golem",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Shield Guardian",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17012-shield-guardian",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Weretiger",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17056-weretiger",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Owlbear",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16975-owlbear",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Red Dragon Wyrmling",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16993-red-dragon-wyrmling",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Ancient Green Dragon",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/16781-ancient-green-dragon",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Vampire Spawn",
+      "ddbUrl": "https://www.dndbeyond.com/monsters/17044-vampire-spawn",
+      "status": "pass",
+      "diffs": []
+    },
+    {
+      "name": "Mage Hand",
+      "status": "skipped",
+      "reason": "No \"Basic Rules (2014)\" entry found for \"Mage Hand\"",
+      "diffs": []
+    }
+  ]
+}

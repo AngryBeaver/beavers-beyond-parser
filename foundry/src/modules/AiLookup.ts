@@ -27,7 +27,7 @@ Example: { "system.damage.parts": [["2d8", "fire"]], "system.save.dc.formula": "
 If nothing needs changing, return {}.`;
 
 function aiService(): { call(s: string, u: string, o?: Record<string, unknown>): Promise<{ content: string }> } | null {
-  return (game as any)?.['beavers-ai-assistant']?.AiService?.get() ?? null;
+  return (game as any)?.['beavers-ai-assistant']?.AiService?.getDefault?.() ?? null;
 }
 
 // ── Icon index cache ──────────────────────────────────────────────────────────

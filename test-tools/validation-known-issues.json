@@ -1,0 +1,197 @@
+{
+  "description": "Known compendium data errors that cause false-positive diffs in validate-monsters.mjs. Our parser output is correct; the compendium entry is wrong. Each entry's 'field' must exactly match the diff.field value produced by compareActors().",
+  "knownIssues": [
+    {
+      "monster": "Drider",
+      "field": "weapon[Bite].attackBonus",
+      "status": "compendium-broken",
+      "explanation": "Compendium stores flat=true, bonus=3 on the Bite attack activity (gives flat +3 to-hit). Correct is flat=false, bonus='' so Foundry auto-calculates STR mod (+3) + proficiency (+3) = +6. Our parser is correct."
+    },
+    {
+      "monster": "Gelatinous Cube",
+      "field": "weapon[Pseudopod].attackBonus",
+      "status": "compendium-broken",
+      "explanation": "Compendium stores a flat attack bonus on the Pseudopod instead of auto-calc. Our parser is correct with flat=false, bonus=''."
+    },
+    {
+      "monster": "Magmin",
+      "field": "weapon[Touch].attackBonus",
+      "status": "compendium-broken",
+      "explanation": "Compendium stores a flat +2 attack bonus on the Touch attack instead of auto-calc. Our parser emits flat=false, bonus='' which auto-calculates correctly."
+    },
+    {
+      "monster": "Camel",
+      "field": "weapon[Bite].attackBonus",
+      "status": "compendium-broken",
+      "explanation": "Compendium stores a flat +3 attack bonus on the Bite instead of auto-calc. Our parser is correct."
+    },
+    {
+      "monster": "Djinni",
+      "field": "items.missing",
+      "status": "compendium-variant-name",
+      "explanation": "Compendium uses 'Conjure Air Elemental' (Djinni-specific variant). DDB and SRD list it as 'Conjure Elemental'. Our parser is correct."
+    },
+    {
+      "monster": "Djinni",
+      "field": "items.extra",
+      "status": "compendium-variant-name",
+      "explanation": "See items.missing entry above — same name mismatch in the other direction."
+    },
+    {
+      "monster": "Storm Giant",
+      "field": "items.missing",
+      "status": "compendium-broken",
+      "explanation": "Storm Giant compendium entry is broken (missing feather fall, innate spellcasting). Ignore."
+    },
+    {
+      "monster": "Storm Giant",
+      "field": "items.extra",
+      "status": "compendium-broken",
+      "explanation": "Storm Giant compendium entry is broken. Parser produces 'spellcasting' which is correct."
+    },
+    {
+      "monster": "Bone Devil",
+      "field": "items.missing",
+      "status": "compendium-name-variant",
+      "explanation": "Compendium uses 'Devil Sight' (no apostrophe). DDB spells it 'Devil's Sight'. Same ability."
+    },
+    {
+      "monster": "Bone Devil",
+      "field": "items.extra",
+      "status": "compendium-name-variant",
+      "explanation": "Parser produces 'devil's sight' from DDB; compendium has 'devil sight'. Same ability."
+    },
+    {
+      "monster": "Ghast",
+      "field": "items.missing",
+      "status": "compendium-name-variant",
+      "explanation": "Compendium uses 'Turn Defiance'. DDB uses 'Turning Defiance'. Same ability."
+    },
+    {
+      "monster": "Ghast",
+      "field": "items.extra",
+      "status": "compendium-name-variant",
+      "explanation": "Parser produces 'turning defiance' from DDB; compendium has 'turn defiance'. Same ability."
+    },
+    {
+      "monster": "Gynosphinx",
+      "field": "items.extra",
+      "status": "compendium-no-legendary-header",
+      "explanation": "Gynosphinx compendium entry omits the 'Legendary Actions' header feat. Our parser creates it (correct behaviour). The compendium is inconsistent across legendary monsters."
+    },
+    {
+      "monster": "Androsphinx",
+      "field": "items.extra",
+      "status": "compendium-no-legendary-header",
+      "explanation": "Androsphinx compendium entry omits the 'Legendary Actions' header feat and the individual roar feats. Our parser creates them from DDB. The compendium is inconsistent across legendary monsters."
+    },
+    {
+      "monster": "Specter",
+      "field": "movement.walk",
+      "status": "compendium-broken",
+      "explanation": "SRD/DDB: Specter Speed 0 ft., fly 50 ft. (hover). Compendium incorrectly has walk=30, fly=0. Our parsed walk=0 is correct."
+    },
+    {
+      "monster": "Specter",
+      "field": "movement.fly",
+      "status": "compendium-broken",
+      "explanation": "SRD/DDB: Specter flies 50 ft. (hover). Compendium incorrectly has fly=0. Our parsed fly=50 is correct."
+    },
+    {
+      "monster": "Ancient White Dragon",
+      "field": "movement.burrow",
+      "status": "compendium-broken",
+      "explanation": "SRD/DDB: Ancient White Dragon burrow 40 ft. Compendium has 30 ft. Our parsed 40 is correct."
+    },
+    {
+      "monster": "Young Blue Dragon",
+      "field": "movement.burrow",
+      "status": "compendium-broken",
+      "explanation": "SRD/DDB: Young Blue Dragon burrow 20 ft. Compendium has 40 ft. Our parsed 20 is correct."
+    },
+    {
+      "monster": "Silver Dragon Wyrmling",
+      "field": "senses.darkvision",
+      "status": "compendium-broken",
+      "explanation": "SRD: Silver Dragon Wyrmling has darkvision 60 ft. Compendium stored 10 ft (likely confused with blindsight 10 ft). Our parsed 60 is correct."
+    },
+    {
+      "monster": "Steam Mephit",
+      "field": "senses.darkvision",
+      "status": "compendium-broken",
+      "explanation": "SRD: Steam Mephit has darkvision 60 ft. Compendium has 0. Our parsed 60 is correct."
+    },
+    {
+      "monster": "Pseudodragon",
+      "field": "languages.missing",
+      "status": "compendium-inconsistency",
+      "explanation": "DDB: 'understands Common and Draconic but can't speak them'. Compendium inconsistently places understood-only languages in value[]. Our parser correctly puts them in custom text only."
+    },
+    {
+      "monster": "Minotaur Skeleton",
+      "field": "languages.missing",
+      "status": "compendium-inconsistency",
+      "explanation": "DDB: 'understands Abyssal but can't speak it'. Compendium puts Abyssal in value[]. Our parser correctly puts understood-only languages in custom text."
+    },
+    {
+      "monster": "Lemure",
+      "field": "languages.missing",
+      "status": "compendium-inconsistency",
+      "explanation": "Compendium has ['infernal','custom'] in value[]. The 'custom' key in value[] is non-standard; 'infernal' being there for a creature that only understands Infernal is a compendium inconsistency."
+    },
+    {
+      "monster": "Werewolf",
+      "field": "movement.walk",
+      "status": "ddb-humanoid-form",
+      "explanation": "DDB shows the humanoid form walk speed (30 ft). Compendium stores the wolf/hybrid form speed (40 ft). Our parser reads DDB's default stat block."
+    },
+    {
+      "monster": "Wereboar",
+      "field": "movement.walk",
+      "status": "ddb-humanoid-form",
+      "explanation": "DDB shows the humanoid form walk speed (30 ft). Compendium stores the boar/hybrid form speed (40 ft)."
+    },
+    {
+      "monster": "Werebear",
+      "field": "movement.walk",
+      "status": "ddb-humanoid-form",
+      "explanation": "DDB shows the humanoid form walk speed (30 ft). Compendium stores the bear/hybrid form speed (40 ft)."
+    },
+    {
+      "monster": "Weretiger",
+      "field": "movement.walk",
+      "status": "ddb-humanoid-form",
+      "explanation": "DDB shows the humanoid form walk speed (30 ft). Compendium stores the tiger/hybrid form speed (40 ft)."
+    },
+    {
+      "monster": "Balor",
+      "field": "traits.ci.extra",
+      "status": "compendium-broken",
+      "explanation": "SRD/DDB: Balor Condition Immunities include Poisoned. Compendium is missing this. Our parser correctly adds 'poisoned' to ci."
+    },
+    {
+      "monster": "Rakshasa",
+      "field": "traits.dv.extra",
+      "status": "compendium-broken",
+      "explanation": "DDB lists 'Damage Vulnerabilities: Piercing from Magic Weapons Wielded by Good Creatures'. Our parser correctly extracts 'piercing' as a DV. Compendium omits this vulnerability."
+    },
+    {
+      "monster": "Pegasus",
+      "field": "languages.extra",
+      "status": "ddb-vs-mm-discrepancy",
+      "explanation": "DDB formats Pegasus languages as 'Celestial, Common, understands Elvish and Sylvan but can't speak them' — putting Celestial and Common in the spoken section. The MM/SRD says Pegasus understands ALL four but can't speak any. Compendium follows MM (empty value[]). Our parser follows DDB."
+    },
+    {
+      "monster": "Kraken",
+      "field": "languages.extra",
+      "status": "ddb-vs-mm-discrepancy",
+      "explanation": "DDB lists 'Abyssal, Celestial, Infernal, Primordial, telepathy 120 ft.' without 'understands' prefix. Our parser treats them as spoken languages. MM/SRD says Kraken understands but communicates via telepathy only. Compendium follows MM (empty value[])."
+    },
+    {
+      "monster": "Winter Wolf",
+      "field": "languages.missing",
+      "status": "compendium-extra-custom",
+      "explanation": "DDB: 'Common, Giant, Winter Wolf'. Our parser produces value=['common','giant']. Compendium also has the 'custom' key in value[] to flag the non-standard 'Winter Wolf' language. Minor compendium behaviour difference."
+    }
+  ]
+}

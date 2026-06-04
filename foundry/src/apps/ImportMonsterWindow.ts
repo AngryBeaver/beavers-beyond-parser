@@ -1,7 +1,7 @@
 import { NAMESPACE, SETTINGS } from '../definitions.js';
 import { BeyondFetcher } from '../modules/BeyondFetcher.js';
 import { StatBlockParser } from '../modules/StatBlockParser.js';
-import { NpcBuilder } from '../modules/NpcBuilder.js';
+import { NpcBuilder } from '../modules/monsterBuilder/index.js';
 import { AiLookup } from '../modules/AiLookup.js';
 import { estimateCost } from '../modules/AiCostEstimate.js';
 import type { AiStats } from '../modules/CompendiumLookup.js';
