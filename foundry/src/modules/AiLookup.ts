@@ -26,7 +26,9 @@ Return ONLY a JSON object mapping dot-notation field paths to their correct valu
 Example: { "system.damage.parts": [["2d8", "fire"]], "system.save.dc.formula": "14" }
 If nothing needs changing, return {}.`;
 
-function aiService(): { call(s: string, u: string, o?: Record<string, unknown>): Promise<{ content: string }> } | null {
+function aiService(): {
+  call(s: string, u: string, o?: Record<string, unknown>): Promise<{ content: string }>;
+} | null {
   return (game as any)?.['beavers-ai-assistant']?.AiService?.getDefault?.() ?? null;
 }
 
@@ -45,7 +47,9 @@ async function loadIconPaths(): Promise<string[]> {
         _iconPaths = (await resp.json()) as string[];
         return _iconPaths;
       }
-    } catch { /* try older version */ }
+    } catch {
+      /* try older version */
+    }
   }
   _iconPaths = [];
   return _iconPaths;
@@ -53,10 +57,10 @@ async function loadIconPaths(): Promise<string[]> {
 
 // Category prefixes used to filter icon list by item type.
 const ICON_CATEGORIES: Record<string, string[]> = {
-  weapon:  ['weapons/', 'equipment/'],
-  spell:   ['magic/', 'consumables/', 'skills/'],
-  feat:    ['skills/', 'magic/', 'equipment/', 'consumables/', 'creatures/'],
-  save:    ['skills/', 'environment/', 'magic/'],
+  weapon: ['weapons/', 'equipment/'],
+  spell: ['magic/', 'consumables/', 'skills/'],
+  feat: ['skills/', 'magic/', 'equipment/', 'consumables/', 'creatures/'],
+  save: ['skills/', 'environment/', 'magic/'],
 };
 
 function buildPromptList(paths: string[], itemType?: string): string {
@@ -69,9 +73,7 @@ function buildPromptList(paths: string[], itemType?: string): string {
     ? paths.filter((p) => prefixes.some((pre) => p.startsWith(pre)))
     : paths;
 
-  const result = filtered
-    .map((p) => p.replace(/\.[^.]+$/, ''))
-    .join('\n');
+  const result = filtered.map((p) => p.replace(/\.[^.]+$/, '')).join('\n');
   _iconPromptCache.set(cacheKey, result);
   return result;
 }
@@ -93,12 +95,18 @@ export const AiLookup = {
     return !!(game as any)?.['beavers-ai-assistant']?.AiService?.isConfigured();
   },
 
-  async classifyMatch(parsedText: string, descriptionText: string): Promise<'MATCH' | 'PATCH' | 'REJECT'> {
+  async classifyMatch(
+    parsedText: string,
+    descriptionText: string,
+  ): Promise<'MATCH' | 'PATCH' | 'REJECT'> {
     const svc = aiService();
     if (!svc) return 'REJECT';
     try {
       const userPrompt = `Description A:\n${parsedText}\n\nDescription B:\n${descriptionText}`;
-      const { content } = await svc.call(SEMANTIC_SYSTEM, userPrompt, { max_tokens: 10, temperature: 0 });
+      const { content } = await svc.call(SEMANTIC_SYSTEM, userPrompt, {
+        max_tokens: 10,
+        temperature: 0,
+      });
       const word = content.trim().toUpperCase().split(/\s/)[0];
       if (word === 'MATCH') return 'MATCH';
       if (word === 'PATCH') return 'PATCH';
@@ -122,8 +130,14 @@ export const AiLookup = {
     const userPrompt = `Item: ${name}\nDescription: ${description}\n\nAvailable icons:\n${listText}`;
     stats.calls++;
     try {
-      const { content } = await svc.call(ICON_SYSTEM, userPrompt, { max_tokens: 80, temperature: 0 });
-      const raw = content.trim().replace(/\\/g, '/').replace(/\.[^.]+$/, '');
+      const { content } = await svc.call(ICON_SYSTEM, userPrompt, {
+        max_tokens: 80,
+        temperature: 0,
+      });
+      const raw = content
+        .trim()
+        .replace(/\\/g, '/')
+        .replace(/\.[^.]+$/, '');
       if (!raw || raw.toLowerCase() === 'miss') {
         stats.iconMiss++;
         return null;
@@ -153,7 +167,10 @@ export const AiLookup = {
     if (!svc) return null;
     try {
       const userPrompt = `Item data:\n${JSON.stringify(data, null, 2)}\n\nTarget description:\n${parsedText}`;
-      const { content } = await svc.call(PATCH_SYSTEM, userPrompt, { max_tokens: 512, temperature: 0 });
+      const { content } = await svc.call(PATCH_SYSTEM, userPrompt, {
+        max_tokens: 512,
+        temperature: 0,
+      });
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) return null;
       const patches = JSON.parse(jsonMatch[0]) as Record<string, unknown>;

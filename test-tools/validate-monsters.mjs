@@ -100,6 +100,12 @@ async function findDdbHref(monsterName) {
 
 // ── Comparison ────────────────────────────────────────────────────────────────
 
+// dnd5e 6.0 stores speeds in movement.speeds, older versions directly on movement.
+function speed(sys, type) {
+  const movement = sys?.attributes?.movement;
+  return movement?.speeds?.[type] ?? movement?.[type] ?? 0;
+}
+
 function setDiff(a, b) {
   const setA = new Set(Array.isArray(a) ? a : []);
   const setB = new Set(Array.isArray(b) ? b : []);
@@ -134,8 +140,8 @@ function compareActors(preview, reference) {
 
   // ── Movement ────────────────────────────────────────────────────────────────
   for (const mv of ['walk', 'fly', 'swim', 'burrow', 'climb']) {
-    const p = Number(prevSys?.attributes?.movement?.[mv] ?? 0);
-    const r = Number(refSys?.attributes?.movement?.[mv] ?? 0);
+    const p = Number(speed(prevSys, mv));
+    const r = Number(speed(refSys, mv));
     if (p !== r) diffs.push({ field: `movement.${mv}`, parsed: p, reference: r });
   }
 

@@ -3,6 +3,7 @@ import { BeyondFetcher } from '../modules/BeyondFetcher.js';
 import { BeyondParser } from '../modules/BeyondParser.js';
 import { ItemBuilder } from '../modules/ItemBuilder.js';
 import { JournalBuilder } from '../modules/JournalBuilder.js';
+import { sourceEntity } from '../modules/ImageStore.js';
 import { NpcBuilder } from '../modules/monsterBuilder/index.js';
 import { ParsedChapter } from '../types.js';
 import { AiLookup } from '../modules/AiLookup.js';
@@ -96,26 +97,32 @@ export class ImportAdventureWindow extends (foundry.applications.api.HandlebarsA
       }
 
       this._setStatus('Building actors…');
-      const { monsterPathToActorId, spellNameToItemId, aiStats, actorsCreated } = await NpcBuilder.build(
-        chapters,
-        (msg) => this._setStatus(msg),
-      );
+      const { monsterPathToActorId, spellNameToItemId, aiStats, actorsCreated } =
+        await NpcBuilder.build(chapters, (msg) => this._setStatus(msg));
       this._setStatus('Importing spells from journal links…');
       await ItemBuilder.importSpellsFromChapters(chapters, spellNameToItemId);
+      const itemPathToUuid = await ItemBuilder.findItemLinks(chapters);
       this._setStatus('Building journals…');
       const { journals, pages } = await JournalBuilder.build(
         adventure.title,
         chapters,
         monsterPathToActorId,
         spellNameToItemId,
+        {
+          itemPathToUuid,
+          imageEntity: sourceEntity(url, adventure.title),
+          onProgress: (msg) => this._setStatus(msg),
+        },
       );
 
-      const iconPart = (aiStats.iconSuggest + aiStats.iconMiss) > 0
-        ? `, ${aiStats.iconSuggest} icon hit(s), ${aiStats.iconMiss} icon miss(es)`
-        : '';
-      const aiPart = aiStats.calls > 0
-        ? ` | AI: ${aiStats.calls} calls, ${aiStats.match} semantic match, ${aiStats.patch} patched${iconPart}`
-        : '';
+      const iconPart =
+        aiStats.iconSuggest + aiStats.iconMiss > 0
+          ? `, ${aiStats.iconSuggest} icon hit(s), ${aiStats.iconMiss} icon miss(es)`
+          : '';
+      const aiPart =
+        aiStats.calls > 0
+          ? ` | AI: ${aiStats.calls} calls, ${aiStats.match} semantic match, ${aiStats.patch} patched${iconPart}`
+          : '';
       this._setStatus(
         `Done — ${chapters.length} chapter(s), ${journals} journal(s), ${pages} page(s), ${actorsCreated} actor(s)${aiPart}.`,
       );

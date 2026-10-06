@@ -3,7 +3,13 @@ import { ItemBuilder } from '../ItemBuilder.js';
 import { findInCompendium, lookupImg, AiStats } from '../CompendiumLookup.js';
 import { AiLookup } from '../AiLookup.js';
 import { DAMAGE_TYPE_MAP, SECTION_ACTIVATION, FULL_ABILITY_MAP, AREA_TYPE_MAP } from './maps.js';
-import { UsesConfig, cleanFormula, parseNameParens, extractEntryName, buildArmorItems } from './helpers.js';
+import {
+  UsesConfig,
+  cleanFormula,
+  parseNameParens,
+  extractEntryName,
+  buildArmorItems,
+} from './helpers.js';
 
 interface SpellRef {
   lookup: string;
@@ -15,7 +21,9 @@ function spanToDamagePart(span: HTMLElement): Record<string, unknown> {
   const rawType = span.getAttribute('data-rolldamagetype') ?? '';
   const dmgType = DAMAGE_TYPE_MAP[rawType.toLowerCase()] ?? rawType.toLowerCase();
   return {
-    number: null, denomination: null, bonus: '',
+    number: null,
+    denomination: null,
+    bonus: '',
     types: dmgType ? [dmgType] : [],
     custom: { enabled: true, formula },
     scaling: { mode: '', number: null, formula: '' },
@@ -49,12 +57,21 @@ function buildAttackItem(
     const m = text.match(/[Hh]it.*?(\d+)\s*\(([^)]+)\)\s+([\w]+)\s+damage/);
     damageBase = m
       ? {
-          number: null, denomination: null, bonus: '',
+          number: null,
+          denomination: null,
+          bonus: '',
           types: [DAMAGE_TYPE_MAP[m[3].toLowerCase()] ?? m[3].toLowerCase()],
           custom: { enabled: true, formula: cleanFormula(m[2].trim()) },
           scaling: { mode: '', number: null, formula: '' },
         }
-      : { number: null, denomination: null, bonus: '', types: [], custom: { enabled: false, formula: '' }, scaling: { mode: '', number: null, formula: '' } };
+      : {
+          number: null,
+          denomination: null,
+          bonus: '',
+          types: [],
+          custom: { enabled: false, formula: '' },
+          scaling: { mode: '', number: null, formula: '' },
+        };
 
     extraParts = [];
     const plusRe = /\bplus\s+\d+\s+\(([^)]+)\)\s+([\w]+)\s+damage/gi;
@@ -62,7 +79,9 @@ function buildAttackItem(
     while ((pm = plusRe.exec(text)) !== null) {
       const dmgType = DAMAGE_TYPE_MAP[pm[2].toLowerCase()] ?? pm[2].toLowerCase();
       extraParts.push({
-        number: null, denomination: null, bonus: '',
+        number: null,
+        denomination: null,
+        bonus: '',
         types: dmgType ? [dmgType] : [],
         custom: { enabled: true, formula: cleanFormula(pm[1].trim()) },
         scaling: { mode: '', number: null, formula: '' },
@@ -160,7 +179,15 @@ function buildSaveItem(
     ...(template ? { target: { template, affects: {} } } : {}),
   };
 
-  return { name, type: 'feat', system: { description: { value: descHtml }, activities: { [activityId]: activity }, ...(uses ? { uses } : {}) } };
+  return {
+    name,
+    type: 'feat',
+    system: {
+      description: { value: descHtml },
+      activities: { [activityId]: activity },
+      ...(uses ? { uses } : {}),
+    },
+  };
 }
 
 function buildFeatItem(
@@ -216,7 +243,8 @@ export function extractSpellsFromLinks(
     if (/^at will\s*:/i.test(trimmed)) {
       method = 'atwill';
     } else if (perDayM) {
-      method = 'innate'; limit = parseInt(perDayM[1], 10);
+      method = 'innate';
+      limit = parseInt(perDayM[1], 10);
     } else if (/^cantrips?\s*(?:\([^)]*\))?\s*:/i.test(trimmed)) {
       method = 'atwill';
     } else if (/^\d+(?:st|nd|rd|th)\s+level\s*(?:\([^)]*\))?\s*:/i.test(trimmed)) {
@@ -232,7 +260,10 @@ export function extractSpellsFromLinks(
     let searchFrom = 0;
     while (linkIdx < allLinks.length) {
       const lt = (allLinks[linkIdx].textContent ?? '').trim().toLowerCase();
-      if (!lt) { linkIdx++; continue; }
+      if (!lt) {
+        linkIdx++;
+        continue;
+      }
       const ltPos = lineLower.indexOf(lt, searchFrom);
       if (ltPos === -1) break;
 
@@ -315,7 +346,16 @@ export async function buildItems(
 
   for (const { entryHtml, activationType, isPassive } of allEntries) {
     items.push(
-      ...(await buildItemsFromEntry(entryHtml, activationType, isPassive, spellNameToItemId, sb.name, onProgress, aiStats, skipAi)),
+      ...(await buildItemsFromEntry(
+        entryHtml,
+        activationType,
+        isPassive,
+        spellNameToItemId,
+        sb.name,
+        onProgress,
+        aiStats,
+        skipAi,
+      )),
     );
   }
 
@@ -348,20 +388,27 @@ export async function buildItemsFromEntry(
   progress('parse');
 
   const lookupName = name.replace(/\s*\([^)]+\)/g, '').trim() || name;
-  const descHtml = entryHtml.split('\n').map((h) => `<p>${h}</p>`).join('');
+  const descHtml = entryHtml
+    .split('\n')
+    .map((h) => `<p>${h}</p>`)
+    .join('');
 
   const isMelee = /melee\s+weapon\s+attack/i.test(text);
   const isRanged = /ranged\s+weapon\s+attack/i.test(text);
 
   let compendiumItem: Record<string, unknown> | null = null;
   let fallbackImg: string | null = null;
-  const useAi = !skipAi && AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
+  const useAi =
+    !skipAi && AiLookup.isAvailable() && AiLookup.isEnabled() && AiLookup.isConfigured();
 
   if (isMelee || isRanged) {
     fallbackImg = await lookupImg(lookupName);
   } else {
     if (useAi) progress('semantic AI search');
-    ({ item: compendiumItem, img: fallbackImg } = await findInCompendium(lookupName, text, { useAi, aiStats }));
+    ({ item: compendiumItem, img: fallbackImg } = await findInCompendium(lookupName, text, {
+      useAi,
+      aiStats,
+    }));
   }
 
   if (compendiumItem) {
@@ -386,8 +433,15 @@ export async function buildItemsFromEntry(
     const spellLink = el.querySelector<HTMLAnchorElement>('a[href*="/spells/"]');
     if (spellLink) {
       const spellName = spellLink.textContent?.trim() ?? name;
-      const spellItem = await ItemBuilder.getSpellForActor(spellName, 'atwill', 0, spellNameToItemId);
-      built = spellItem ? [spellItem] : [buildAttackItem(spellName, entryHtml, isMeleeSpell, 'spell')];
+      const spellItem = await ItemBuilder.getSpellForActor(
+        spellName,
+        'atwill',
+        0,
+        spellNameToItemId,
+      );
+      built = spellItem
+        ? [spellItem]
+        : [buildAttackItem(spellName, entryHtml, isMeleeSpell, 'spell')];
     } else {
       built = [buildAttackItem(name, entryHtml, isMeleeSpell, 'weapon', uses, activationCost)];
     }
@@ -399,7 +453,9 @@ export async function buildItemsFromEntry(
 
     if (linkGroups.length > 0 || textGroups.length > 0) {
       const spellResult: Record<string, unknown>[] = [];
-      spellResult.push(buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost));
+      spellResult.push(
+        buildFeatItem(name, descHtml, activationType, isPassive, uses, activationCost),
+      );
       const seen = new Set<string>();
 
       if (linkGroups.length > 0) {
@@ -407,10 +463,16 @@ export async function buildItemsFromEntry(
           for (const spell of spells) {
             if (seen.has(spell.lookup)) continue;
             seen.add(spell.lookup);
-            const spellItem = await ItemBuilder.getSpellForActor(spell.lookup, method, limit, spellNameToItemId);
+            const spellItem = await ItemBuilder.getSpellForActor(
+              spell.lookup,
+              method,
+              limit,
+              spellNameToItemId,
+            );
             if (spellItem) {
               if (spell.display !== spell.lookup) {
-                spellItem.name = (spellItem.name as string) + spell.display.slice(spell.lookup.length);
+                spellItem.name =
+                  (spellItem.name as string) + spell.display.slice(spell.lookup.length);
               }
               spellResult.push(spellItem);
             }
@@ -421,7 +483,12 @@ export async function buildItemsFromEntry(
           for (const spellName of spells) {
             if (seen.has(spellName)) continue;
             seen.add(spellName);
-            const spellItem = await ItemBuilder.getSpellForActor(spellName, method, limit, spellNameToItemId);
+            const spellItem = await ItemBuilder.getSpellForActor(
+              spellName,
+              method,
+              limit,
+              spellNameToItemId,
+            );
             if (spellItem) spellResult.push(spellItem);
           }
         }
@@ -444,7 +511,7 @@ export async function buildItemsFromEntry(
     }
   } else if (useAi && aiStats) {
     progress('AI icon search');
-    const iconType = (isMelee || isRanged) ? 'weapon' : 'feat';
+    const iconType = isMelee || isRanged ? 'weapon' : 'feat';
     const suggested = await AiLookup.suggestIcon(name, text, aiStats, iconType);
     if (suggested) {
       for (const item of built) {

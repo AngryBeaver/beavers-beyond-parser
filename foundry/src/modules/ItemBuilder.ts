@@ -2,6 +2,7 @@ import { ParsedChapter, ParsedSpell, ParsedStatBlock } from '../types.js';
 import { PRIMARY_PACK_MODULES, LEGACY_PACK_MODULES } from '../definitions.js';
 import { StatBlockParser } from './StatBlockParser.js';
 import { SpellParser } from './SpellParser.js';
+import { ImageStore, spellImageTarget } from './ImageStore.js';
 
 // Module-level cache — "dndBeyond > Spells" folder ID, created once per session
 let _spellFolderId: string | null | undefined;
@@ -156,6 +157,57 @@ export class ItemBuilder {
     }
   }
 
+  /**
+   * Resolve the /magic-items/ and /equipment/ links of all chapters to compendium items,
+   * keyed by link path. Lookup only: nothing is created for items no compendium has.
+   */
+  static async findItemLinks(chapters: ParsedChapter[]): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+
+    // lowercased item name → UUID, in pack priority order
+    const byName = new Map<string, string>();
+    for (const pack of resolvedSpellPackList()) {
+      try {
+        for (const entry of (await pack.getIndex()) as Iterable<any>) {
+          const key = entry.name?.toLowerCase();
+          if (key && !byName.has(key))
+            byName.set(key, `Compendium.${pack.collection}.Item.${entry._id}`);
+        }
+      } catch {
+        // skip unavailable/broken packs
+      }
+    }
+
+    for (const chapter of chapters) {
+      for (const page of chapter.pages) {
+        const doc = new DOMParser().parseFromString(page.content, 'text/html');
+        for (const a of Array.from(doc.querySelectorAll<HTMLAnchorElement>('a[href]'))) {
+          let pathname: string;
+          try {
+            pathname = new URL(a.getAttribute('href') ?? '', 'https://www.dndbeyond.com').pathname;
+          } catch {
+            continue;
+          }
+          if (!/^\/(magic-items|equipment)\//.test(pathname) || result.has(pathname)) continue;
+
+          const slug = pathname.split('/').filter(Boolean).pop() ?? '';
+          const name = slug.replace(/^\d+-/, '').replace(/-/g, ' ');
+          const words = name.split(' ');
+          const candidates = [
+            name,
+            name.replace(/ (\d)$/, ' +$1'), // "longsword 1" → "Longsword +1"
+            name.replace(/ (\d)$/, ', +$1'), // … or "Longsword, +1"
+            [...words.slice(1), words[0]].join(' '), // "crossbow light" → "Light Crossbow"
+            a.textContent?.trim().toLowerCase() ?? '',
+          ];
+          const uuid = candidates.map((c) => byName.get(c)).find(Boolean);
+          if (uuid) result.set(pathname, uuid);
+        }
+      }
+    }
+    return result;
+  }
+
   /** Parse "At will:" / "N/day each:" lines from plain text. */
   static parseSpellLists = parseSpellLists;
 }
@@ -261,13 +313,23 @@ async function getOrCreateWorldSpellItem(
   if (parsed?.concentration) properties.add('concentration');
   if (parsed?.ritual) properties.add('ritual');
 
-  const activity = buildSpellActivity(parsed?.attackSave ?? '', parsed?.damageEffect ?? '', activation);
+  const activity = buildSpellActivity(
+    parsed?.attackSave ?? '',
+    parsed?.damageEffect ?? '',
+    activation,
+  );
+
+  let img = '';
+  if (parsed?.imageUrl) {
+    const target = spellImageTarget(name, parsed.imageUrl);
+    img = await ImageStore.store(target.entity, target.name, parsed.imageUrl);
+  }
 
   const data: Record<string, unknown> = {
     name,
     type: 'spell',
     folder: folderId,
-    ...(parsed?.imageUrl ? { img: parsed.imageUrl } : {}),
+    ...(img ? { img } : {}),
     system: {
       level: parsed?.level ?? 0,
       school: parsed?.school ?? 'evo',
@@ -348,9 +410,10 @@ function resolvedSpellPackList(): any[] {
     else extra.push(pack);
   }
 
-  primary.sort((a, b) =>
-    PRIMARY_PACK_MODULES.indexOf(a.collection.split('.')[0]) -
-    PRIMARY_PACK_MODULES.indexOf(b.collection.split('.')[0]),
+  primary.sort(
+    (a, b) =>
+      PRIMARY_PACK_MODULES.indexOf(a.collection.split('.')[0]) -
+      PRIMARY_PACK_MODULES.indexOf(b.collection.split('.')[0]),
   );
 
   return [...primary, ...extra, ...legacy];
@@ -437,7 +500,13 @@ function parseSpellLists(text: string): Array<{ method: string; limit: number; s
 function splitSpellList(text: string): string[] {
   return text
     .split(',')
-    .map((s) => s.trim().toLowerCase().replace(/\s*\([^)]*\)\s*$/, '').trim())
+    .map((s) =>
+      s
+        .trim()
+        .toLowerCase()
+        .replace(/\s*\([^)]*\)\s*$/, '')
+        .trim(),
+    )
     .filter(Boolean);
 }
 
@@ -465,9 +534,7 @@ function parseSpellRange(rangeText: string): { value: string | null; units: stri
   return { value: null, units: 'spec' };
 }
 
-function parseSpellArea(
-  rangeText: string,
-): { type: string; size: number; units: string } | null {
+function parseSpellArea(rangeText: string): { type: string; size: number; units: string } | null {
   const areaM = rangeText.match(
     /\((\d+)[\s-]*(foot|feet|ft|mile)[s\s-]*(cone|cube|cylinder|line|radius|emanation|sphere|square)/i,
   );
@@ -507,26 +574,41 @@ function parseSpellDuration(durationText: string): { value: string | null; units
 }
 
 const DAMAGE_TYPE_MAP_SPELLS: Record<string, string> = {
-  acid: 'acid', bludgeoning: 'bludgeoning', cold: 'cold', fire: 'fire', force: 'force',
-  lightning: 'lightning', necrotic: 'necrotic', piercing: 'piercing', poison: 'poison',
-  psychic: 'psychic', radiant: 'radiant', slashing: 'slashing', thunder: 'thunder',
+  acid: 'acid',
+  bludgeoning: 'bludgeoning',
+  cold: 'cold',
+  fire: 'fire',
+  force: 'force',
+  lightning: 'lightning',
+  necrotic: 'necrotic',
+  piercing: 'piercing',
+  poison: 'poison',
+  psychic: 'psychic',
+  radiant: 'radiant',
+  slashing: 'slashing',
+  thunder: 'thunder',
   healing: 'healing',
 };
 
 const SAVE_ABILITY_MAP: Record<string, string> = {
-  str: 'str', strength: 'str',
-  dex: 'dex', dexterity: 'dex',
-  con: 'con', constitution: 'con',
-  int: 'int', intelligence: 'int',
-  wis: 'wis', wisdom: 'wis',
-  cha: 'cha', charisma: 'cha',
+  str: 'str',
+  strength: 'str',
+  dex: 'dex',
+  dexterity: 'dex',
+  con: 'con',
+  constitution: 'con',
+  int: 'int',
+  intelligence: 'int',
+  wis: 'wis',
+  wisdom: 'wis',
+  cha: 'cha',
+  charisma: 'cha',
 };
 
 function parseDamageParts(
   damageEffect: string,
 ): Array<{ number: number; denomination: number; bonus: string; types: string[] }> {
-  const parts: Array<{ number: number; denomination: number; bonus: string; types: string[] }> =
-    [];
+  const parts: Array<{ number: number; denomination: number; bonus: string; types: string[] }> = [];
   const m = damageEffect.match(/(\d+)d(\d+)(?:\s*\+\s*(\d+))?\s+(\w+)/i);
   if (!m) return parts;
   const dmgType = DAMAGE_TYPE_MAP_SPELLS[m[4].toLowerCase()] ?? m[4].toLowerCase();
@@ -548,7 +630,9 @@ function buildSpellActivity(
   const damageParts = parseDamageParts(damageEffect);
 
   // Save activity
-  const saveAbilityM = as.match(/\b(str|dex|con|int|wis|cha|strength|dexterity|constitution|intelligence|wisdom|charisma)\b/i);
+  const saveAbilityM = as.match(
+    /\b(str|dex|con|int|wis|cha|strength|dexterity|constitution|intelligence|wisdom|charisma)\b/i,
+  );
   if (saveAbilityM && /save/i.test(as)) {
     const ability = SAVE_ABILITY_MAP[saveAbilityM[1].toLowerCase()] ?? 'dex';
     return {

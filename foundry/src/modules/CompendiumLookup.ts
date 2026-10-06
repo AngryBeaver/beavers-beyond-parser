@@ -3,8 +3,14 @@ import { PRIMARY_PACK_MODULES, LEGACY_PACK_MODULES } from '../definitions.js';
 // ── T1.2 — Valid item types ───────────────────────────────────────────────────
 
 const VALID_ITEM_TYPES = new Set([
-  'weapon', 'spell', 'feat', 'background',
-  'consumable', 'equipment', 'tool', 'loot',
+  'weapon',
+  'spell',
+  'feat',
+  'background',
+  'consumable',
+  'equipment',
+  'tool',
+  'loot',
 ]);
 
 // ── T1.3 — Candidate shape ────────────────────────────────────────────────────
@@ -35,7 +41,10 @@ export interface AiStats {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /** Build the resolved pack priority list at runtime. */
@@ -95,7 +104,7 @@ export async function lookupCandidates(name: string): Promise<CompendiumCandidat
       const entry = (index as any).find((e: any) => e.name?.toLowerCase() === nameLower);
       if (!entry) continue;
 
-      const doc = await pack.getDocument(entry._id) as any;
+      const doc = (await pack.getDocument(entry._id)) as any;
       if (!doc) continue;
 
       const itemType: string = doc.type ?? '';

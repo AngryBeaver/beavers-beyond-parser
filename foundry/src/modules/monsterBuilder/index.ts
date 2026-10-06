@@ -6,18 +6,29 @@ import { buildActorData, findInPacks, findOrCreateDndBeyondActorFolder } from '.
 import { IMonsterParser } from './parsers/IMonsterParser.js';
 import { LegacyMonsterParser } from './parsers/LegacyMonsterParser.js';
 import { Modern2024MonsterParser } from './parsers/Modern2024MonsterParser.js';
-import { StatBlockParser } from '../StatBlockParser.js';
+import { StatBlockParser, buildStatBlockHtml } from '../StatBlockParser.js';
+import { ImageStore, monsterEntity } from '../ImageStore.js';
 
-const PARSERS: IMonsterParser[] = [
-  new Modern2024MonsterParser(),
-  new LegacyMonsterParser(),
-];
+const PARSERS: IMonsterParser[] = [new Modern2024MonsterParser(), new LegacyMonsterParser()];
 
 function getParser(html: string): IMonsterParser {
-  return PARSERS.find((p) => p.canHandle(html)) ?? {
-    canHandle: () => true,
-    extractAll: (doc: Document) => StatBlockParser.extractAll(doc),
-  };
+  return (
+    PARSERS.find((p) => p.canHandle(html)) ?? {
+      canHandle: () => true,
+      extractAll: (doc: Document) => StatBlockParser.extractAll(doc),
+    }
+  );
+}
+
+/**
+ * Copy the monster's portrait into local storage and point the stat block at the copy.
+ * The actor image doubles as its token texture, which the canvas can only load from a
+ * same-origin (local) file.
+ */
+async function localizeImages(sb: ParsedStatBlock, hrefOrUrl: string): Promise<void> {
+  if (!sb.imageUrl) return;
+  sb.imageUrl = await ImageStore.store(monsterEntity(hrefOrUrl, sb.name), 'portrait', sb.imageUrl);
+  sb.cleanHtml = buildStatBlockHtml(sb);
 }
 
 export class NpcBuilder {
@@ -118,15 +129,27 @@ export class NpcBuilder {
         ? (msg: string) => onProgress(`${msg} [${pct}%]`)
         : undefined;
       onProgress?.(`Building actors: ${sb.name}… [${pct}%]`);
+      await localizeImages(sb, originalHref);
       const actor = (await Actor.create(
-        (await buildActorData(sb, dndBeyondFolderId, spellNameToItemId, progressWithPct, aiStats)) as any,
+        (await buildActorData(
+          sb,
+          dndBeyondFolderId,
+          spellNameToItemId,
+          progressWithPct,
+          aiStats,
+        )) as any,
       )) as Actor | null | undefined;
       if (actor?.id) {
         monsterPathToActorId.set(originalHref, `Actor.${actor.id}`);
       }
     }
 
-    return { monsterPathToActorId, spellNameToItemId, aiStats, actorsCreated: pendingCreations.length };
+    return {
+      monsterPathToActorId,
+      spellNameToItemId,
+      aiStats,
+      actorsCreated: pendingCreations.length,
+    };
   }
 
   /**
@@ -137,7 +160,13 @@ export class NpcBuilder {
   static async previewMonsterImport(
     url: string,
     { skipAi = false }: { skipAi?: boolean } = {},
-  ): Promise<{ actorData: Record<string, unknown>; name: string } | null> {
+  ): Promise<{
+    actorData: Record<string, unknown>;
+    name: string;
+    aiStats: AiStats;
+    /** Time spent building the actor (parsing, compendium lookup, AI), without the page fetch. */
+    buildMs: number;
+  } | null> {
     try {
       const html = await BeyondFetcher.fetchPage(url);
       const parser = getParser(html);
@@ -146,17 +175,29 @@ export class NpcBuilder {
       if (statBlocks.length === 0) return null;
       const sb = statBlocks[0];
       const aiStats: AiStats = { calls: 0, match: 0, patch: 0, iconSuggest: 0, iconMiss: 0 };
+      const started = performance.now();
       const actorData = await buildActorData(sb, null, new Map(), undefined, aiStats, skipAi);
-      return { actorData, name: sb.name };
+      return {
+        actorData,
+        name: sb.name,
+        aiStats,
+        buildMs: Math.round(performance.now() - started),
+      };
     } catch (err: unknown) {
       console.warn('[bbp] previewMonsterImport failed:', (err as Error)?.message);
       return null;
     }
   }
 
-  static async createSingle(sb: ParsedStatBlock, doc?: Document): Promise<{ aiStats: AiStats }> {
+  /** `sourceUrl` is the monster page the stat block came from; it identifies the entity for image storage. */
+  static async createSingle(
+    sb: ParsedStatBlock,
+    doc?: Document,
+    sourceUrl = '',
+  ): Promise<{ aiStats: AiStats }> {
     const aiStats: AiStats = { calls: 0, match: 0, patch: 0, iconSuggest: 0, iconMiss: 0 };
     const folderId = await findOrCreateDndBeyondActorFolder();
+    await localizeImages(sb, sb.monsterHref || sourceUrl);
     const { spellNameToItemId } = await ItemBuilder.importAllSpells([sb], doc);
     const actor = (await Actor.create(
       (await buildActorData(sb, folderId, spellNameToItemId, undefined, aiStats)) as any,

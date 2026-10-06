@@ -54,7 +54,11 @@ export function parseNameParens(rawName: string): NameParsed {
 
   s = s.replace(/\s*\(Recharge\s+(\d+)(?:\s*[–\-]\s*\d+)?\)/gi, (_, min) => {
     if (!uses) {
-      uses = { max: '1', spent: 0, recovery: [{ period: 'recharge', type: 'recoverAll', formula: min }] };
+      uses = {
+        max: '1',
+        spent: 0,
+        recovery: [{ period: 'recharge', type: 'recoverAll', formula: min }],
+      };
     }
     return '';
   });

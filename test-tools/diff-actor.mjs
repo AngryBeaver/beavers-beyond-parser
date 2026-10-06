@@ -18,6 +18,12 @@ if (!previewPath || !referencePath) {
 const preview   = JSON.parse(readFileSync(previewPath,   'utf8'));
 const reference = JSON.parse(readFileSync(referencePath, 'utf8'));
 
+// dnd5e 6.0 stores speeds in movement.speeds, older versions directly on movement.
+function speed(sys, type) {
+  const movement = sys?.attributes?.movement;
+  return movement?.speeds?.[type] ?? movement?.[type] ?? 0;
+}
+
 function setDiff(a, b) {
   const sa = new Set(Array.isArray(a) ? a : []);
   const sb = new Set(Array.isArray(b) ? b : []);
@@ -55,8 +61,8 @@ for (const [field, p, r] of checks) {
 }
 
 for (const mv of ['walk', 'fly', 'swim', 'burrow', 'climb']) {
-  const p = pSys?.attributes?.movement?.[mv] ?? 0;
-  const r = rSys?.attributes?.movement?.[mv] ?? 0;
+  const p = Number(speed(pSys, mv));
+  const r = Number(speed(rSys, mv));
   if (p !== r) diffs.push({ field: `movement.${mv}`, parsed: p, reference: r });
 }
 

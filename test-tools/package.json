@@ -8,10 +8,18 @@
     "validate:goblin": "node validate-monsters.mjs --name Goblin",
     "validate:limit10": "node validate-monsters.mjs --limit 10",
     "search": "node search-ddb.mjs",
-    "diff": "node diff-actor.mjs"
+    "diff": "node diff-actor.mjs",
+    "probe:2024": "node probe-2024-monsters.mjs",
+    "run": "node run-import.mjs",
+    "compare": "node compare-runs.mjs",
+    "links": "node analyze-links.mjs",
+    "bench:ai": "node bench-ai.mjs"
   },
   "dependencies": {
     "beavers-voice-transcript-client": "file:../../beavers-ai-assistant/client",
     "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.12.0"
   }
 }

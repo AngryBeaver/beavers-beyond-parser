@@ -2,6 +2,8 @@ declare namespace foundry {
   namespace utils {
     function randomID(length?: number): string;
     function deepClone<T>(original: T): T;
+    function isNewerVersion(v1: string | number, v0: string | number): boolean;
+    function getRoute(path: string, options?: { prefix?: string | null }): string;
   }
   namespace applications {
     namespace api {

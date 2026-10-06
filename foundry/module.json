@@ -15,6 +15,18 @@
   "manifest": "https://github.com/AngryBeaver/beavers-beyond-parser/releases/latest/download/module.json",
   "download": "https://github.com/AngryBeaver/beavers-beyond-parser/releases/latest/download/beavers-beyond-parser.zip",
   "socket": true,
+  "relationships": {
+    "systems": [
+      {
+        "id": "dnd5e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "5.3",
+          "verified": "6.0.5"
+        }
+      }
+    ]
+  },
   "compatibility": {
     "minimum": "13",
     "verified": "14"

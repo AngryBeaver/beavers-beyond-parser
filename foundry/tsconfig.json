@@ -9,8 +9,9 @@
     "resolveJsonModule": true,
     "moduleResolution": "node",
     "allowJs": true,
+    "noEmit": true,
     "types": ["jquery", "@league-of-foundry-developers/foundry-vtt-types"]
   },
-  "include": ["src"],
+  "include": ["src", "test"],
   "exclude": ["node_modules"]
 }

@@ -3,6 +3,6 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "build:proxy": "docker build -f Dockerfile -t angrybeaver/beyond-parser ."
+    "build:proxy": "docker build -t angrybeaver/beyond-parser proxy-parser"
   }
 }

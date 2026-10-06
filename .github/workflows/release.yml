@@ -1,8 +1,19 @@
 name: Release
 
+# A commit on the default branch whose message starts with "release v1.2.3" builds the module as version 1.2.3 and
+# publishes it as the GitHub release v1.2.3. Foundry's manifest URL points at the latest release, so users get the
+# update.
+#
+# Four jobs, so a failure is visible on its own and can be retried with "Re-run failed jobs":
+#   release         builds and creates the GitHub release
+#   publish         registers the version on foundryvtt.com
+#   publish-docker  pushes the proxy image to DockerHub
+#   bump            commits the version to the package.json files on the default branch
+# publish, publish-docker and bump only depend on release, not on each other.
+
 on:
   push:
-    branches: [main]
+    branches: [main, master]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -11,21 +22,23 @@ jobs:
   release:
     runs-on: ubuntu-latest
     if: startsWith(github.event.head_commit.message, 'release v')
-    outputs:
-      version: ${{ steps.version.outputs.num }}
-      tag: ${{ steps.version.outputs.tag }}
 
     permissions:
       contents: write
+
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      num: ${{ steps.version.outputs.num }}
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Extract version from commit message
         id: version
+        env:
+          MSG: ${{ github.event.head_commit.message }}
         run: |
-          MSG="${{ github.event.head_commit.message }}"
-          VERSION=$(echo "$MSG" | grep -oP 'v\d+\.\d+\.\d+')
+          VERSION=$(echo "$MSG" | head -1 | grep -oP 'v\d+\.\d+\.\d+')
           if [ -z "$VERSION" ]; then
             echo "Could not parse version from commit message: $MSG"
             exit 1
@@ -47,10 +60,16 @@ jobs:
         working-directory: ./foundry
         run: pnpm typecheck
 
-      - name: Bump version in module files
-        run: |
-          npm pkg set version=${{ steps.version.outputs.num }} --prefix foundry
-          npm pkg set version=${{ steps.version.outputs.num }} --prefix proxy-parser
+      - name: Test
+        working-directory: ./foundry
+        run: pnpm test
+
+      - name: Typecheck proxy
+        working-directory: ./proxy-parser
+        run: pnpm typecheck
+
+      - name: Set version in package.json
+        run: npm pkg set version=${{ steps.version.outputs.num }} --prefix foundry
 
       - name: Build release zip
         working-directory: ./foundry
@@ -62,9 +81,57 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
           make_latest: true
+          generate_release_notes: true
           files: |
             foundry/package/beavers-beyond-parser.zip
             foundry/package/module.json
+
+  # Registers the version on foundryvtt.com so it shows up in Foundry's package browser.
+  # The manifest URL is pinned to this release's tag, as Foundry requires a version specific manifest.
+  publish:
+    runs-on: ubuntu-latest
+    needs: release
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download module.json from the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release.outputs.tag }}
+        run: gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern module.json
+
+      - name: Publish to Foundry
+        env:
+          FOUNDRY_RELEASE_TOKEN: ${{ secrets.FOUNDRY_RELEASE_TOKEN }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          TAG: ${{ needs.release.outputs.tag }}
+          VERSION: ${{ needs.release.outputs.num }}
+        run: |
+          if [ -z "$FOUNDRY_RELEASE_TOKEN" ]; then
+            echo "FOUNDRY_RELEASE_TOKEN secret is not set"
+            exit 1
+          fi
+          PAYLOAD=$(jq -n \
+            --slurpfile m module.json \
+            --arg version "$VERSION" \
+            --arg manifest "$REPO_URL/releases/download/$TAG/module.json" \
+            --arg notes "$REPO_URL/releases/tag/$TAG" \
+            '{
+              id: $m[0].id,
+              release: {
+                version: $version,
+                manifest: $manifest,
+                notes: $notes,
+                compatibility: $m[0].compatibility
+              }
+            }')
+          echo "$PAYLOAD"
+          curl --fail-with-body -sS -X POST "https://foundryvtt.com/_api/packages/release_version/" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $FOUNDRY_RELEASE_TOKEN" \
+            -d "$PAYLOAD"
 
   publish-docker:
     runs-on: ubuntu-latest
@@ -82,9 +149,38 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: Dockerfile
+          context: ./proxy-parser
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/beyond-parser:${{ needs.release.outputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/beyond-parser:${{ needs.release.outputs.num }}
             ${{ secrets.DOCKERHUB_USERNAME }}/beyond-parser:latest
+
+  # Pushes made with the workflow's GITHUB_TOKEN never start another workflow run, [skip ci] is a second guard.
+  bump:
+    runs-on: ubuntu-latest
+    needs: release
+
+    permissions:
+      contents: write
+
+    steps:
+      # The default branch, not the release commit: the push must not be rejected when it moved on in the meantime.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Commit version bump to the default branch
+        env:
+          VERSION: ${{ needs.release.outputs.num }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          npm pkg set version="$VERSION" --prefix foundry
+          npm pkg set version="$VERSION" --prefix proxy-parser
+          if git diff --quiet -- foundry/package.json proxy-parser/package.json; then
+            echo "package.json files are already at $VERSION"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "bump version to $VERSION [skip ci]" -- foundry/package.json proxy-parser/package.json
+          git push origin "HEAD:$BRANCH"

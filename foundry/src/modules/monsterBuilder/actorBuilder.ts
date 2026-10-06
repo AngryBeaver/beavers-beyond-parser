@@ -5,6 +5,12 @@ import { parseTraits } from './traitParser.js';
 import { buildItems } from './itemsBuilder.js';
 import { cleanFormula, parseCr } from './helpers.js';
 
+/** dnd5e 6.0 moved the movement speeds from `movement.walk` etc. into `movement.speeds`. */
+function movementData(speeds: Record<string, number>): Record<string, unknown> {
+  const hasSpeedsField = !foundry.utils.isNewerVersion('6.0.0', game.system?.version ?? '0');
+  return { ...(hasSpeedsField ? { speeds } : speeds), units: 'ft' };
+}
+
 export async function buildActorData(
   sb: ParsedStatBlock,
   folderId: string | null,
@@ -29,7 +35,7 @@ export async function buildActorData(
       attributes: {
         hp: { value: sb.hp, min: 0, max: sb.hp, formula: cleanFormula(sb.hpFormula) },
         ac: { flat: sb.ac, calc: 'flat' },
-        movement: { ...movement, units: 'ft' },
+        movement: movementData(movement),
         senses: { ranges: senses.ranges, units: 'ft', special: senses.special },
       },
       abilities: {

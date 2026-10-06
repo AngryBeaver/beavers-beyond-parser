@@ -17,19 +17,39 @@ export interface CostEstimate {
 
 // Approximate token usage per monster (all features, worst-case AI path)
 const CALLS_PER_MONSTER = 15;
-const INPUT_TOKENS  = 5_000;
+const INPUT_TOKENS = 5_000;
 const OUTPUT_TOKENS = 700;
 
-const MODEL_META: Record<string, { name: string; inputRate: number; outputRate: number; rateLabel: string }> = {
-  sonnet: { name: 'Claude Sonnet', inputRate: 3,   outputRate: 15, rateLabel: '$3 + $15 per 1M tokens' },
-  haiku:  { name: 'Claude Haiku',  inputRate: 0.8, outputRate: 4,  rateLabel: '$0.80 + $4 per 1M tokens' },
-  opus:   { name: 'Claude Opus',   inputRate: 15,  outputRate: 75, rateLabel: '$15 + $75 per 1M tokens' },
+const MODEL_META: Record<
+  string,
+  { name: string; inputRate: number; outputRate: number; rateLabel: string }
+> = {
+  sonnet: {
+    name: 'Claude Sonnet',
+    inputRate: 3,
+    outputRate: 15,
+    rateLabel: '$3 + $15 per 1M tokens',
+  },
+  haiku: {
+    name: 'Claude Haiku',
+    inputRate: 0.8,
+    outputRate: 4,
+    rateLabel: '$0.80 + $4 per 1M tokens',
+  },
+  opus: {
+    name: 'Claude Opus',
+    inputRate: 15,
+    outputRate: 75,
+    rateLabel: '$15 + $75 per 1M tokens',
+  },
 };
 
 function resolveModelKey(): string {
-  const raw = ((game as any).settings?.get('beavers-ai-assistant', 'claudeModel') as string ?? '').toLowerCase();
+  const raw = (
+    ((game as any).settings?.get('beavers-ai-assistant', 'claudeModel') as string) ?? ''
+  ).toLowerCase();
   if (raw.includes('haiku')) return 'haiku';
-  if (raw.includes('opus'))  return 'opus';
+  if (raw.includes('opus')) return 'opus';
   return 'sonnet';
 }
 
@@ -45,21 +65,21 @@ function formatTokens(n: number): string {
 export function estimateCost(...counts: number[]): CostEstimate | null {
   if (!AiLookup.isAvailable() || !AiLookup.isEnabled()) return null;
 
-  const meta        = MODEL_META[resolveModelKey()];
+  const meta = MODEL_META[resolveModelKey()];
   const costPerUnit = (INPUT_TOKENS * meta.inputRate + OUTPUT_TOKENS * meta.outputRate) / 1_000_000;
 
   const totals: TotalRow[] = counts.map((count) => ({
-    header:      `Total (× ${count} monster${count === 1 ? '' : 's'})`,
+    header: `Total (× ${count} monster${count === 1 ? '' : 's'})`,
     claudeModel: meta.name,
     claudeTotal: formatCost(costPerUnit * count),
-    claudeRate:  meta.rateLabel,
+    claudeRate: meta.rateLabel,
   }));
 
   return {
     perUnitHeader: `Per monster (~${CALLS_PER_MONSTER} AI calls)`,
-    inputTokens:   `${formatTokens(INPUT_TOKENS)} tokens`,
-    outputTokens:  `${formatTokens(OUTPUT_TOKENS)} tokens`,
-    costPerUnit:   formatCost(costPerUnit),
+    inputTokens: `${formatTokens(INPUT_TOKENS)} tokens`,
+    outputTokens: `${formatTokens(OUTPUT_TOKENS)} tokens`,
+    costPerUnit: formatCost(costPerUnit),
     totals,
   };
 }

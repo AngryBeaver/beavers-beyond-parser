@@ -85,19 +85,26 @@ export class ImportMonsterWindow extends (foundry.applications.api.HandlebarsApp
       this._setStatus(`Creating ${statBlocks.length} actor(s)…`);
       const totals: AiStats = { calls: 0, match: 0, patch: 0, iconSuggest: 0, iconMiss: 0 };
       for (const sb of statBlocks) {
-        const { aiStats } = await NpcBuilder.createSingle(sb, doc);
+        // The page URL only identifies the monster when the page holds a single stat block.
+        const { aiStats } = await NpcBuilder.createSingle(
+          sb,
+          doc,
+          statBlocks.length === 1 ? url : '',
+        );
         totals.calls += aiStats.calls;
         totals.match += aiStats.match;
         totals.patch += aiStats.patch;
         totals.iconSuggest += aiStats.iconSuggest;
         totals.iconMiss += aiStats.iconMiss;
       }
-      const iconPart = (totals.iconSuggest + totals.iconMiss) > 0
-        ? `, ${totals.iconSuggest} icon hit(s), ${totals.iconMiss} icon miss(es)`
-        : '';
-      const aiPart = totals.calls > 0
-        ? ` | AI: ${totals.calls} calls, ${totals.match} match, ${totals.patch} patched${iconPart}`
-        : '';
+      const iconPart =
+        totals.iconSuggest + totals.iconMiss > 0
+          ? `, ${totals.iconSuggest} icon hit(s), ${totals.iconMiss} icon miss(es)`
+          : '';
+      const aiPart =
+        totals.calls > 0
+          ? ` | AI: ${totals.calls} calls, ${totals.match} match, ${totals.patch} patched${iconPart}`
+          : '';
       this._setStatus(`Done — created ${statBlocks.length} actor(s)${aiPart}.`);
     } catch (err: any) {
       this._setStatus(`Error: ${err.message}`);

@@ -17,7 +17,10 @@ export function parseMovement(speed: string): Record<string, number> {
   return m;
 }
 
-export function parseSenses(sb: ParsedStatBlock): { ranges: Record<string, number>; special: string } {
+export function parseSenses(sb: ParsedStatBlock): {
+  ranges: Record<string, number>;
+  special: string;
+} {
   const ranges: Record<string, number> = {};
   let special = '';
 
@@ -45,7 +48,9 @@ export function parseSenses(sb: ParsedStatBlock): { ranges: Record<string, numbe
   return { ranges, special };
 }
 
-export function parseSkills(sb: ParsedStatBlock): Record<string, { value: number; ability: string }> {
+export function parseSkills(
+  sb: ParsedStatBlock,
+): Record<string, { value: number; ability: string }> {
   const result: Record<string, { value: number; ability: string }> = {};
   const row = sb.data.find((d) => d.label === 'Skills')?.value ?? '';
   if (!row) return result;

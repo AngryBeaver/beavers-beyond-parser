@@ -1,92 +1,62 @@
 # Beaver's Beyond Parser
 
-> **Complexity: Medium** — Requires Docker installed and basic familiarity with the terminal to run the proxy container. If you've never used Docker before, this module is not plug-and-play.
+![Latest Release](https://img.shields.io/github/v/release/AngryBeaver/beavers-beyond-parser)
+![Foundry Core Compatible Version](https://img.shields.io/endpoint?url=https%3A%2F%2Ffoundryshields.com%2Fversion%3Fstyle%3Dflat%26url%3Dhttps%3A%2F%2Fgithub.com%2FAngryBeaver%2Fbeavers-beyond-parser%2Freleases%2Flatest%2Fdownload%2Fmodule.json)
+![Foundry Systems](https://img.shields.io/endpoint?url=https%3A%2F%2Ffoundryshields.com%2Fsystem%3FnameType%3Draw%26showVersion%3D1%26style%3Dflat%26url%3Dhttps%3A%2F%2Fgithub.com%2FAngryBeaver%2Fbeavers-beyond-parser%2Freleases%2Flatest%2Fdownload%2Fmodule.json)
+![Download Count](https://img.shields.io/github/downloads/AngryBeaver/beavers-beyond-parser/total?color=green)
 
-A Foundry VTT module that imports D&D Beyond adventures into Foundry journals. Each chapter becomes a `JournalEntry`; each heading becomes a `JournalEntryPage`.
+![Setup Complexity](https://img.shields.io/badge/setup%20complexity-3%2F5-orange)
+
+A Foundry VTT module that imports D&D Beyond adventures, monsters and spells you own into Foundry (dnd5e),
+including local copies of all images.
+
+**Installing and using the module: see [foundry/README.md](./foundry/README.md).** In short: start the proxy
+container with your D&D Beyond session cookie, install the module, paste a D&D Beyond URL.
+
+```bash
+docker run -d --name beyond-parser --restart unless-stopped \
+  -p 3001:3001 -e COBALT_SESSION=paste_your_cookie_value_here \
+  angrybeaver/beyond-parser:latest
+```
 
 ## What's in this repo
 
 | Directory | What it is |
 |---|---|
-| [`foundry/`](./foundry) | The Foundry VTT module — install this in your Foundry instance |
-| [`proxy-parser/`](./proxy-parser) | Node.js proxy server — fetches D&D Beyond pages server-side (bypasses browser CORS) |
-
-## Prerequisites
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
-- A D&D Beyond account with the adventure purchased
-- Your `CobaltSession` cookie value from D&D Beyond (log in to DDB in your browser → DevTools → Application → Cookies → copy `CobaltSession`)
-
-## Setup
-
-### 1 — Run the proxy container
-
-Copy `.env.example` to `.env` in the `proxy-parser/` directory and fill in your `CobaltSession`:
-
-```
-proxy-parser/.env
------------------
-COBALT_SESSION=your_session_value_here
-PORT=3001
-```
-
-Then start the container:
-
-```bash
-docker compose -f beyond-parser-compose.yml up -d
-```
-
-The proxy listens on `http://localhost:3001`. Stop it with:
-
-```bash
-docker compose -f beyond-parser-compose.yml down
-```
-
-### 2 — Install the Foundry module
-
-Download `beavers-beyond-parser.zip` from the [latest GitHub release](../../releases/latest) and install it in Foundry VTT via **Add-on Modules → Install Module → Install from zip**.
-
-Or use the manifest URL from the release's `module.json`.
-
-### 3 — Configure the module
-
-In Foundry VTT → **Game Settings → Module Settings → Beaver's Beyond Parser**:
-
-- **Parser Proxy URL**: `http://localhost:3001` (default — change only if you run the proxy on a different host/port)
-
-### 4 — Import an adventure
-
-Open the importer from either location (GM only):
-
-- **Journal Entries sidebar** → click the **Import Adventure** button in the header, next to Create Entry and Create Folder.
-- **Game Settings → Module Settings → Beaver's Beyond Parser** → click the **Import Adventure** button.
-
-Then:
-
-1. Paste the D&D Beyond adventure URL (e.g. `https://www.dndbeyond.com/sources/cm`) and click **Fetch**.
-2. The module parses the table of contents and lists all chapters.
-3. Click **Import to Foundry** — the proxy fetches each chapter and builds journals automatically.
-
-**No proxy?** You can also paste raw HTML manually: open D&D Beyond → View Source (`Ctrl+U`) → select all → paste into the text area.
+| [`foundry/`](./foundry) | The Foundry VTT module |
+| [`proxy-parser/`](./proxy-parser) | Node.js proxy — fetches D&D Beyond pages and images server-side (browsers are blocked by CORS). Published as the `angrybeaver/beyond-parser` Docker image |
+| [`test-tools/`](./test-tools) | Scripts that validate imported monsters against the dnd5e compendiums |
 
 ## Building from source
 
 ```bash
 pnpm install
-cd foundry && pnpm build
+cd foundry
+pnpm build        # into foundry/dist
+pnpm devbuild     # into the Foundry modules folder set as "devDir" in foundry/package.json
+pnpm test
+```
+
+Run the proxy from source instead of the published image:
+
+```bash
+cp proxy-parser/.env.example proxy-parser/.env   # then fill in COBALT_SESSION
+pnpm build:proxy
+docker compose -f beyond-parser-compose.yml up -d
 ```
 
 ## Releasing a new version
 
-Push a commit to `main` whose message starts with `release v` followed by a semver, e.g.:
+Push a commit to the default branch whose message starts with `release v` followed by a semver, e.g.:
 
 ```
 release v0.2.0
 ```
 
 GitHub Actions will:
-1. Typecheck the foundry module
-2. Build and publish a release zip + `module.json` to GitHub Releases
+1. Typecheck and test, then build and publish a release zip + `module.json` to GitHub Releases
+2. Register the version on foundryvtt.com
 3. Build and push the Docker image to DockerHub as `angrybeaver/beyond-parser:0.2.0` and `:latest`
+4. Commit the version to the `package.json` files
 
-Requires `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets set in the repository settings.
+Requires the `FOUNDRY_RELEASE_TOKEN`, `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets set in the repository settings.

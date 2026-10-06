@@ -28,6 +28,13 @@ export class StatBlockParser {
       if (sb) results.push(sb);
     }
 
+    // Format 3: 2024 individual monster pages (.mon-stat-block-2024)
+    for (const el of Array.from(doc.querySelectorAll('.mon-stat-block-2024'))) {
+      const container = el.closest('.detail-content, .page-content') ?? el.parentElement ?? el;
+      const sb = StatBlockParser.parseMon2024(container as HTMLElement);
+      if (sb) results.push(sb);
+    }
+
     return results;
   }
 
@@ -244,9 +251,128 @@ export class StatBlockParser {
     };
     return { ...sbData, cleanHtml: buildStatBlockHtml(sbData) };
   }
+  // Handles the .mon-stat-block-2024 format used on 2024 D&D Beyond individual monster pages.
+  // Pass the outer container (.detail-content) so the portrait image can be found alongside it.
+  static parseMon2024(container: HTMLElement): ParsedStatBlock | null {
+    const el = container.querySelector<HTMLElement>('.mon-stat-block-2024') ?? container;
+
+    const name =
+      el
+        .querySelector('.mon-stat-block-2024__name-link, .mon-stat-block-2024__name')
+        ?.textContent?.trim() ?? '';
+    if (!name) return null;
+
+    const monsterHref =
+      el
+        .querySelector<HTMLAnchorElement>('.mon-stat-block-2024__name-link')
+        ?.getAttribute('href') ?? '';
+
+    const meta = el.querySelector('.mon-stat-block-2024__meta')?.textContent?.trim() ?? '';
+
+    const getAttribute = (label: string): { value: string; extra: string } => {
+      for (const attr of Array.from(el.querySelectorAll('.mon-stat-block-2024__attribute'))) {
+        if (
+          attr.querySelector('.mon-stat-block-2024__attribute-label')?.textContent?.trim() === label
+        ) {
+          const value =
+            attr.querySelector('.mon-stat-block-2024__attribute-data-value')?.textContent?.trim() ??
+            '';
+          const extra =
+            attr.querySelector('.mon-stat-block-2024__attribute-data-extra')?.textContent?.trim() ??
+            '';
+          return { value, extra };
+        }
+      }
+      return { value: '', extra: '' };
+    };
+
+    const { value: acRaw } = getAttribute('AC');
+    const ac = parseInt(acRaw, 10) || 0;
+    const acNote = '';
+
+    const { value: hpRaw, extra: hpExtra } = getAttribute('HP');
+    const hp = parseInt(hpRaw, 10) || 0;
+    const hpFormula = hpExtra.replace(/^\(|\)$/g, '').trim();
+
+    const { value: speed } = getAttribute('Speed');
+
+    // Abilities come from two .stat-table tables (physical: STR/DEX/CON, mental: INT/WIS/CHA).
+    // Each row: <th>STR</th><td>21</td><td class="modifier">+5</td><td class="modifier">+5</td>
+    const abilities = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+    for (const row of Array.from(el.querySelectorAll('.stat-table tbody tr'))) {
+      const cells = Array.from(row.querySelectorAll('th, td'));
+      if (cells.length < 2) continue;
+      const key = cells[0].textContent?.trim().toLowerCase() ?? '';
+      const score = parseInt(cells[1].textContent?.trim() ?? '10', 10);
+      if (key in abilities) (abilities as Record<string, number>)[key] = score;
+    }
+
+    const data: Array<{ label: string; value: string }> = [];
+    let cr = '';
+    let xp = 0;
+    let profBonus = '';
+
+    for (const tidbit of Array.from(el.querySelectorAll('.mon-stat-block-2024__tidbit'))) {
+      const label =
+        tidbit.querySelector('.mon-stat-block-2024__tidbit-label')?.textContent?.trim() ?? '';
+      const value =
+        tidbit.querySelector('.mon-stat-block-2024__tidbit-data')?.textContent?.trim() ?? '';
+      if (!label || !value) continue;
+      if (label === 'CR') {
+        cr = value.match(/^([^\s(]+)/)?.[1] ?? '';
+        // "10 (XP 5,900, or 7,200 in lair; PB +4)" — take the first XP figure
+        const xpM = value.match(/XP\s*([\d,]+)/i);
+        xp = xpM ? parseInt(xpM[1].replace(/,/g, ''), 10) : 0;
+        const pbM = value.match(/PB\s*([+-]\d+)/i);
+        profBonus = pbM ? pbM[1] : '';
+      } else {
+        data.push({ label, value });
+      }
+    }
+
+    const sections: Array<{ heading: string; entries: string[] }> = [];
+    for (const block of Array.from(
+      el.querySelectorAll('.mon-stat-block-2024__description-block'),
+    )) {
+      const heading =
+        block
+          .querySelector('.mon-stat-block-2024__description-block-heading')
+          ?.textContent?.trim() ?? '';
+      const contentEl = block.querySelector<HTMLElement>(
+        '.mon-stat-block-2024__description-block-content',
+      );
+      if (!contentEl) continue;
+      const entries = Array.from(contentEl.querySelectorAll('p')).map((p) => p.innerHTML);
+      if (entries.length) sections.push({ heading, entries });
+    }
+
+    // Image lives in a sibling .image div within the container
+    const lightbox = container.querySelector<HTMLAnchorElement>('.image a[data-lightbox]');
+    const imgEl = container.querySelector<HTMLImageElement>('img.monster-image');
+    const imageUrl = lightbox?.getAttribute('href') ?? imgEl?.getAttribute('src') ?? '';
+
+    const sbData = {
+      name,
+      meta,
+      monsterHref,
+      ac,
+      acNote,
+      hp,
+      hpFormula,
+      speed,
+      abilities,
+      cr,
+      xp,
+      profBonus,
+      data,
+      sections,
+      imageUrl,
+    };
+    return { ...sbData, cleanHtml: buildStatBlockHtml(sbData) };
+  }
 }
 
-function buildStatBlockHtml(sb: Omit<ParsedStatBlock, 'cleanHtml'>): string {
+export function buildStatBlockHtml(sb: Omit<ParsedStatBlock, 'cleanHtml'>): string {
   const parts: string[] = ['<div class="bbp-stat-block">'];
 
   if (sb.imageUrl) {

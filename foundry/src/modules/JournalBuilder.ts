@@ -1,9 +1,34 @@
 import { ParsedChapter } from '../types.js';
+import { ImageStore } from './ImageStore.js';
 
 interface JournalData {
   journalId: string;
   anchorToPageId: Map<string, string>;
 }
+
+/** Everything link rewriting can resolve a D&D Beyond link to. */
+export interface LinkContext {
+  /** chapter slug → journal + anchors */
+  slugToData: Map<string, JournalData>;
+  /** "/monsters/17281-meenlock" → actor UUID */
+  monsterPathToActorId: Pick<Map<string, string>, 'get'>;
+  /** lowercased spell name → item UUID */
+  spellNameToItemId: Pick<Map<string, string>, 'get'>;
+  /** "/magic-items/4710-potion-of-invisibility", "/equipment/4-longsword" → item UUID */
+  itemPathToUuid?: Pick<Map<string, string>, 'get'>;
+  /** Resolve a rules term ("Stealth", "RestrainedCondition") to a dnd5e `&Reference` target. */
+  findRule?: (candidates: string[]) => string | null;
+  currentChapterData?: JournalData;
+}
+
+export interface JournalBuildOptions {
+  itemPathToUuid?: Map<string, string>;
+  /** Folder below `beyond/` the journal images are copied to; images stay remote when omitted. */
+  imageEntity?: string;
+  onProgress?: (msg: string) => void;
+}
+
+const DDB_ORIGIN = 'https://www.dndbeyond.com';
 
 export class JournalBuilder {
   static async build(
@@ -11,6 +36,7 @@ export class JournalBuilder {
     chapters: ParsedChapter[],
     monsterPathToActorId: Map<string, string>,
     spellNameToItemId: Map<string, string> = new Map(),
+    { itemPathToUuid, imageEntity, onProgress }: JournalBuildOptions = {},
   ): Promise<{ journals: number; pages: number }> {
     const folder = (await Folder.create({
       name: adventureTitle,
@@ -60,26 +86,36 @@ export class JournalBuilder {
       slugToData.set(chapter.slug, { journalId: journal.id, anchorToPageId });
     }
 
-    // Pass 2: create pages with pre-assigned IDs and rewritten links
+    // Pass 2: create pages with pre-assigned IDs and rewritten links.
+    // Images are copied to local storage before the pages referencing them are created; this
+    // runs after link rewriting so stat blocks replaced by an @Embed are not downloaded again.
+    const imageClaims = new Map<string, string>();
     for (const { journal, chapter, pageIds } of created) {
       if (chapter.pages.length === 0) continue;
       const chapterData = slugToData.get(chapter.slug);
-      const pages = chapter.pages.map((page, i) => ({
-        _id: pageIds[i],
-        name: page.name || `Page ${i + 1}`,
-        type: 'text',
-        sort: (i + 1) * 100,
-        text: {
-          content: rewriteLinks(
-            page.content,
-            slugToData,
-            monsterPathToActorId,
-            spellNameToItemId,
-            chapterData,
-          ),
-          format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML,
-        },
-      }));
+      const pages = [];
+      for (let i = 0; i < chapter.pages.length; i++) {
+        const page = chapter.pages[i];
+        let content = rewriteLinks(page.content, {
+          slugToData,
+          monsterPathToActorId,
+          spellNameToItemId,
+          itemPathToUuid,
+          findRule: findDnd5eRule,
+          currentChapterData: chapterData,
+        });
+        if (imageEntity) {
+          onProgress?.(`Copying images: ${chapter.title} — ${page.name}…`);
+          content = await ImageStore.localizeHtml(content, imageEntity, imageClaims);
+        }
+        pages.push({
+          _id: pageIds[i],
+          name: page.name || `Page ${i + 1}`,
+          type: 'text',
+          sort: (i + 1) * 100,
+          text: { content, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML },
+        });
+      }
       await JournalEntryPage.createDocuments(pages, { parent: journal });
     }
 
@@ -144,7 +180,7 @@ function renderStatBlock(el: Element): string {
   return parts.join('\n');
 }
 
-function normalizeAnchor(text: string): string {
+export function normalizeAnchor(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
@@ -166,17 +202,51 @@ function lookupAnchor(anchorToPageId: Map<string, string>, anchor: string): stri
   return undefined;
 }
 
-function rewriteLinks(
-  html: string,
-  slugToData: Map<string, JournalData>,
-  monsterPathToActorId: Map<string, string>,
-  spellNameToItemId: Map<string, string>,
-  currentChapterData?: JournalData,
-): string {
-  if (slugToData.size === 0 && monsterPathToActorId.size === 0 && spellNameToItemId.size === 0)
-    return html;
+/**
+ * dnd5e ships its rules as journal pages and links to them with `&Reference[type=key]`.
+ * Returns that target for the first candidate naming a known condition, skill, rule, ….
+ */
+let _ruleIndex: Map<string, string> | null = null;
+function findDnd5eRule(candidates: string[]): string | null {
+  if (!_ruleIndex) {
+    _ruleIndex = new Map();
+    const config = (globalThis as any).CONFIG?.DND5E ?? {};
+    for (const [type, def] of Object.entries<any>(config.ruleTypes ?? {})) {
+      const table = (foundry.utils as any).getProperty(config, def.references) ?? {};
+      for (const [key, entry] of Object.entries<any>(table)) {
+        if (!(typeof entry === 'object' ? entry?.reference : entry)) continue;
+        const target = `${type}=${key}`;
+        if (!_ruleIndex.has(normalizeAnchor(key))) _ruleIndex.set(normalizeAnchor(key), target);
+        const label =
+          typeof entry === 'object' && entry.label ? (game as any).i18n.localize(entry.label) : '';
+        if (label && !_ruleIndex.has(normalizeAnchor(label))) {
+          _ruleIndex.set(normalizeAnchor(label), target);
+        }
+      }
+    }
+  }
+  for (const candidate of candidates) {
+    const target = _ruleIndex.get(normalizeAnchor(candidate));
+    if (target) return target;
+  }
+  return null;
+}
+
+/** Names a rules link may refer to: its text and its anchor, also without inflection. */
+function ruleCandidates(text: string, hash: string): string[] {
+  const names = [text, hash, hash.replace(/Condition$/, '')].filter(Boolean);
+  // "surprised" → "surprise", "potions" → "potion"
+  for (const name of [...names]) {
+    const lower = name.toLowerCase();
+    if (/(ed|s)$/.test(lower))
+      names.push(lower.replace(/(d|s)$/, ''), lower.replace(/(ed|s)$/, ''));
+  }
+  return names;
+}
+
+export function rewriteLinks(html: string, ctx: LinkContext): string {
+  const { slugToData, monsterPathToActorId, spellNameToItemId, currentChapterData } = ctx;
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  let changed = false;
 
   // Pass 1: inline stat blocks — must run before anchor rewriting so the title
   // link hasn't been replaced yet, and so any links inside the rendered HTML
@@ -198,13 +268,14 @@ function rewriteLinks(
       let pathname = '';
       try {
         pathname = href.startsWith('http') ? new URL(href).pathname : href.split('#')[0];
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       const actorUuid = pathname ? monsterPathToActorId.get(pathname) : undefined;
       if (actorUuid) {
         const name = titleLink.textContent?.trim() ?? '';
         div.replaceWith(doc.createTextNode(`@Embed[${actorUuid}]{${name}}`));
-        changed = true;
         continue;
       }
     }
@@ -215,98 +286,101 @@ function rewriteLinks(
       const temp = doc.createElement('div');
       temp.innerHTML = renderStatBlock(div);
       div.replaceWith(...Array.from(temp.childNodes));
-      changed = true;
     }
   }
+
+  const pageLink = (data: JournalData, pageId: string | undefined, text: string): Text =>
+    doc.createTextNode(
+      pageId
+        ? `@UUID[JournalEntry.${data.journalId}.JournalEntryPage.${pageId}]{${text}}`
+        : `@UUID[JournalEntry.${data.journalId}]{${text}}`,
+    );
+
+  /** Find an anchor in the current chapter first, then anywhere in the adventure. */
+  const findAnchor = (hash: string): [JournalData, string] | undefined => {
+    for (const data of [currentChapterData, ...slugToData.values()]) {
+      const pageId = data && lookupAnchor(data.anchorToPageId, hash);
+      if (data && pageId) return [data, pageId];
+    }
+    return undefined;
+  };
 
   // Pass 2: anchor links
   for (const a of Array.from(doc.querySelectorAll('a[href]'))) {
-    if (a.getAttribute('aria-hidden') === 'true') continue;
-    const href = a.getAttribute('href') ?? '';
+    let href = (a.getAttribute('href') ?? '').trim();
+    // D&D Beyond occasionally drops the "#" of an in-page link ("WizardsQuartersTreasure")
+    if (/^[A-Za-z][\w-]*$/.test(href)) href = `#${href}`;
+
     let pathname: string;
     let hash: string;
+    let external = false;
     try {
-      if (href.startsWith('http')) {
-        const u = new URL(href);
-        pathname = u.pathname;
-        hash = u.hash.slice(1);
-      } else {
-        const hashIdx = href.indexOf('#');
-        if (hashIdx >= 0) {
-          pathname = href.slice(0, hashIdx);
-          hash = href.slice(hashIdx + 1);
-        } else {
-          pathname = href;
-          hash = '';
-        }
-      }
+      const u = new URL(href, DDB_ORIGIN);
+      external = !/^https?:$/.test(u.protocol) || !/(^|\.)dndbeyond\.com$/.test(u.hostname);
+      pathname = href.startsWith('#') ? '' : u.pathname;
+      hash = decodeURIComponent(u.hash.slice(1));
     } catch {
       continue;
     }
+    if (external) continue; // other sites, mailto: … stay as they are
 
     const text = a.textContent?.trim() ?? '';
 
-    // Pure in-page hash links (#SomeAnchor with no pathname) — resolve within
-    // the current chapter using the expanded anchorToPageId map.
-    if (!pathname && hash && currentChapterData) {
-      const pageId = lookupAnchor(currentChapterData.anchorToPageId, hash);
-      if (pageId) {
-        a.replaceWith(
-          doc.createTextNode(
-            `@UUID[JournalEntry.${currentChapterData.journalId}.JournalEntryPage.${pageId}]{${text}}`,
-          ),
-        );
-        changed = true;
+    // In-page links (#SomeAnchor)
+    if (!pathname) {
+      // Headings carry an empty self-link (the permalink icon) — it has no use in a journal.
+      if (!text && !a.querySelector('img')) {
+        a.remove();
+        continue;
       }
+      const found = hash ? findAnchor(hash) : undefined;
+      if (found) a.replaceWith(pageLink(found[0], found[1], text));
+      else a.replaceWith(...Array.from(a.childNodes)); // dead anchor: keep the text only
       continue;
     }
 
-    // Monster links: /monsters/...
-    if (pathname.startsWith('/monsters/')) {
-      const actorUuid = monsterPathToActorId.get(pathname);
-      if (actorUuid) {
-        a.replaceWith(doc.createTextNode(`@UUID[${actorUuid}]{${text}}`));
-        changed = true;
-      }
-      continue;
-    }
+    const segments = pathname.split('/').filter(Boolean);
+    const slug = segments[segments.length - 1] ?? '';
+    const nameFromSlug = slug.replace(/^\d+-/, '').replace(/-/g, ' ');
+    let target: string | undefined;
 
-    // Spell links: /spells/123-fire-bolt or /spells/fire-bolt
-    if (pathname.includes('/spells/')) {
-      const slug = pathname.split('/').filter(Boolean).pop() ?? '';
-      const nameFromSlug = slug.replace(/^\d+-/, '').replace(/-/g, ' ');
-      const spellUuid =
+    if (segments[0] === 'monsters') {
+      target = monsterPathToActorId.get(pathname);
+    } else if (segments.includes('spells')) {
+      // /spells/123-fire-bolt or /spells/fire-bolt
+      target =
         spellNameToItemId.get(nameFromSlug.toLowerCase()) ??
         spellNameToItemId.get(text.toLowerCase());
-      if (spellUuid) {
-        a.replaceWith(doc.createTextNode(`@UUID[${spellUuid}]{${text}}`));
-        changed = true;
-      }
-      continue;
-    }
-
-    // Chapter/page links: match by last URL segment
-    const slug = pathname.split('/').filter(Boolean).pop() ?? '';
-    if (!slug) continue;
-    const data = slugToData.get(slug);
-    if (!data) continue;
-
-    if (hash) {
-      const pageId = lookupAnchor(data.anchorToPageId, hash);
-      if (pageId) {
-        a.replaceWith(
-          doc.createTextNode(
-            `@UUID[JournalEntry.${data.journalId}.JournalEntryPage.${pageId}]{${text}}`,
-          ),
-        );
-      } else {
-        a.replaceWith(doc.createTextNode(`@UUID[JournalEntry.${data.journalId}]{${text}}`));
-      }
+    } else if (segments[0] === 'magic-items' || segments[0] === 'equipment') {
+      target = ctx.itemPathToUuid?.get(pathname);
     } else {
-      a.replaceWith(doc.createTextNode(`@UUID[JournalEntry.${data.journalId}]{${text}}`));
+      // Chapter/page links: match by last URL segment
+      const data = slugToData.get(slug);
+      if (data) {
+        a.replaceWith(
+          pageLink(data, hash ? lookupAnchor(data.anchorToPageId, hash) : undefined, text),
+        );
+        continue;
+      }
+      // Links into the rule books → the rules shipped with the dnd5e system
+      if (segments[0] === 'sources' || segments[0] === 'compendium') {
+        const rule = text ? ctx.findRule?.(ruleCandidates(text, hash)) : null;
+        if (rule) {
+          a.replaceWith(doc.createTextNode(`&Reference[${rule}]{${text}}`));
+          continue;
+        }
+      }
     }
-    changed = true;
+
+    if (target) {
+      a.replaceWith(doc.createTextNode(`@UUID[${target}]{${text}}`));
+    } else {
+      // Nothing local to link to: at least make the link work from inside Foundry.
+      a.setAttribute('href', new URL(href, DDB_ORIGIN).href);
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener');
+    }
   }
 
-  return changed ? doc.body.innerHTML : html;
+  return doc.body.innerHTML;
 }

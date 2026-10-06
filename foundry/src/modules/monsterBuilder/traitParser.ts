@@ -18,38 +18,52 @@ export interface TraitResult {
 
 export function parseTraits(sb: ParsedStatBlock): TraitResult {
   const result: TraitResult = {
-    di: [], diCustom: '', diBypasses: [],
-    dr: [], drCustom: '', drBypasses: [],
-    dv: [], dvCustom: '',
-    ci: [], ciCustom: '',
-    languages: [], langCustom: '',
+    di: [],
+    diCustom: '',
+    diBypasses: [],
+    dr: [],
+    drCustom: '',
+    drBypasses: [],
+    dv: [],
+    dvCustom: '',
+    ci: [],
+    ciCustom: '',
+    languages: [],
+    langCustom: '',
   };
 
   for (const { label, value } of sb.data) {
     switch (label) {
       case 'Damage Immunities': {
         const { known, custom, bypasses } = parseDamageList(value);
-        result.di = known; result.diCustom = custom; result.diBypasses = bypasses;
+        result.di = known;
+        result.diCustom = custom;
+        result.diBypasses = bypasses;
         break;
       }
       case 'Damage Resistances': {
         const { known, custom, bypasses } = parseDamageList(value);
-        result.dr = known; result.drCustom = custom; result.drBypasses = bypasses;
+        result.dr = known;
+        result.drCustom = custom;
+        result.drBypasses = bypasses;
         break;
       }
       case 'Damage Vulnerabilities': {
         const { known, custom } = parseDamageList(value);
-        result.dv = known; result.dvCustom = custom;
+        result.dv = known;
+        result.dvCustom = custom;
         break;
       }
       case 'Condition Immunities': {
         const { known, custom } = parseConditionList(value);
-        result.ci = known; result.ciCustom = custom;
+        result.ci = known;
+        result.ciCustom = custom;
         break;
       }
       case 'Languages': {
         const { known, custom } = parseLanguageList(value);
-        result.languages = known; result.langCustom = custom;
+        result.languages = known;
+        result.langCustom = custom;
         break;
       }
     }
@@ -57,7 +71,11 @@ export function parseTraits(sb: ParsedStatBlock): TraitResult {
   return result;
 }
 
-export function parseDamageList(text: string): { known: string[]; custom: string; bypasses: string[] } {
+export function parseDamageList(text: string): {
+  known: string[];
+  custom: string;
+  bypasses: string[];
+} {
   const known: string[] = [];
   const unknown: string[] = [];
   const bypasses: string[] = [];
@@ -65,7 +83,7 @@ export function parseDamageList(text: string): { known: string[]; custom: string
   // DDB uses semicolons to separate distinct clauses.  Drop any clause that ends with a
   // "(from SpellName)" parenthetical — those are conditional resistances from active spells,
   // not permanent traits (e.g. Archmage: "Nonmagical BPS (from Stoneskin)").
-  const clauses = text.split(/;/).filter(c => !/\(\s*from\s+\w/i.test(c));
+  const clauses = text.split(/;/).filter((c) => !/\(\s*from\s+\w/i.test(c));
   const filtered = clauses.join(',');
 
   if (/nonmagical/i.test(filtered)) bypasses.push('mgc');
@@ -73,13 +91,19 @@ export function parseDamageList(text: string): { known: string[]; custom: string
   if (/adamantine/i.test(filtered)) bypasses.push('ada');
 
   for (const part of filtered.split(/[,]/)) {
-    const clean = part.trim().toLowerCase().replace(/^(and|or)\s+/, '');
+    const clean = part
+      .trim()
+      .toLowerCase()
+      .replace(/^(and|or)\s+/, '');
     for (const seg of clean.split(/\s+(?:and|or)\s+/)) {
       const s = seg.trim();
       const matched = Object.keys(DAMAGE_TYPE_MAP).find((k) => s.startsWith(k));
       if (matched) {
         known.push(DAMAGE_TYPE_MAP[matched]);
-      } else if (s && !/^(from|that|aren't|nonmagical|weapon|attacks?|silvered|adamantine)\b/i.test(s)) {
+      } else if (
+        s &&
+        !/^(from|that|aren't|nonmagical|weapon|attacks?|silvered|adamantine)\b/i.test(s)
+      ) {
         unknown.push(seg.trim());
       }
     }
@@ -119,7 +143,12 @@ export function parseLanguageList(text: string): { known: string[]; custom: stri
   const isCantSpeak = /\bbut\s+(?:can(?:'t|not)\s+speak|doesn'?t\s+speak)\b/i.test(understandsPart);
 
   const addSpoken = (raw: string): void => {
-    let clean = raw.trim().toLowerCase().replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
+    let clean = raw
+      .trim()
+      .toLowerCase()
+      .replace(/\s*\([^)]*\)/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
     if (!clean || /^(and|or|but)\b/.test(clean)) return;
     if (/^plus\b.+\blanguages?\b/i.test(clean) || /\s+plus\s+.+\blanguages?\b/i.test(clean)) {
       hasOpenQualifier = true;

@@ -27,8 +27,10 @@ export class SpellParser {
       if (!spellEl) continue;
 
       const imgEl = container.querySelector<HTMLImageElement>('img.spell-image');
-      const name = imgEl?.getAttribute('alt')?.trim() ??
-        container.querySelector('.more-info-title')?.textContent?.trim() ?? '';
+      const name =
+        imgEl?.getAttribute('alt')?.trim() ??
+        container.querySelector('.more-info-title')?.textContent?.trim() ??
+        '';
       if (!name) continue;
 
       const imageUrl = imgEl?.getAttribute('src')?.trim() ?? '';
