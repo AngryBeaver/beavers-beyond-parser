@@ -1,3 +1,9 @@
+/**
+ * Progress callback of an import step. `fraction` (0–1) says how far that step is;
+ * it is omitted for messages that do not move the progress.
+ */
+export type ProgressFn = (msg: string, fraction?: number) => void;
+
 export interface ParsedAdventure {
   title: string;
   url: string;

@@ -220,7 +220,11 @@ export class ImageStore {
     if (known?.src === src) return known.path;
 
     if (Date.now() < ImageStore.proxyDownUntil) return src;
-    const blob = await ImageStore.download(src);
+    // One retry: a single image occasionally fails while many are fetched in parallel.
+    const blob = await ImageStore.download(src).catch((err) => {
+      if (err instanceof ProxyError) throw err;
+      return ImageStore.download(src);
+    });
     const ext = EXT_BY_MIME[blob.type.split(';')[0].trim()] ?? 'png';
 
     const dir = `${IMAGE_ROOT}/${entity}`;

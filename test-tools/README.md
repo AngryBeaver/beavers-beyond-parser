@@ -82,3 +82,20 @@ node probe-game-page.mjs        # /game page HTML inspection
 ## Known false positives
 
 `validation-known-issues.json` lists compendium data errors that cause diffs in validation — our parser output is correct, the compendium entry is wrong. Each entry explains the discrepancy.
+
+## Headless import tests
+
+These scripts drive a running Foundry world in headless Chrome. Put a GM user into `.env`
+(`FOUNDRY_URL`, `FOUNDRY_USER` = user name, `FOUNDRY_PASS`).
+
+| Script | What it does |
+|---|---|
+| `run-adventure.mjs --label <name> [--ai] [--model <m>] [--chapters N] <url>` | Complete adventure import, filed under `dndbeyond/<label>/…` (actors, items, journals). Runs never share documents, so the same adventure can be imported repeatedly with different settings. Timing goes to `runs/<label>/adventure.json`. |
+| `audit-import.mjs --label <name>` | Read-only quality report of a run: portraits, tokens, item icons, broken links, images, leftover D&D Beyond markup. Use `audit-import.mjs "<journal folder>"` for an import made without a label. |
+| `run-import.mjs --label <name> [--ai] [--model <m>]` | Monster-only comparison through the preview API. Creates nothing in the world; results go to `runs/<label>/`. |
+| `compare-runs.mjs <baseline> <run> …` | Compares `run-import.mjs` runs: time, AI calls, what the AI changed per item. |
+| `bench-ai.mjs [model …]` | Times the importer's AI prompts directly against LocalAI. |
+| `analyze-links.mjs <url>` | Runs the journal link rewriter on an adventure without Foundry and lists links it cannot resolve. |
+
+The runs only ever write inside the importer's own folders (`dndbeyond` for actors and journals,
+`dndBeyond` for items) and the `beyond/` image directory.

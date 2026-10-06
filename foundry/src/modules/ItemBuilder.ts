@@ -1,11 +1,27 @@
-import { ParsedChapter, ParsedSpell, ParsedStatBlock } from '../types.js';
+import { ParsedChapter, ParsedSpell, ParsedStatBlock, ProgressFn } from '../types.js';
 import { PRIMARY_PACK_MODULES, LEGACY_PACK_MODULES } from '../definitions.js';
 import { StatBlockParser } from './StatBlockParser.js';
 import { SpellParser } from './SpellParser.js';
 import { ImageStore, spellImageTarget } from './ImageStore.js';
+import { importFolder } from './ImportFolders.js';
+import { BeyondFetcher } from './BeyondFetcher.js';
+import { buildItemData, parseItemPage } from './ItemPageParser.js';
 
-// Module-level cache — "dndBeyond > Spells" folder ID, created once per session
-let _spellFolderId: string | null | undefined;
+/**
+ * Key for comparing spell names. Stat blocks write "Heroes’ Feast", link slugs give
+ * "heroes feast", compendiums have "Heroes' Feast", and footnoted spells end in "*".
+ */
+function looseName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+/** Name for a spell created from a stat block reference ("mage armor*" → "Mage Armor"). */
+function displayName(name: string): string {
+  return name
+    .replace(/[*]+$/, '')
+    .trim()
+    .replace(/(^|[ -])([a-z])/g, (_, sep, c) => sep + c.toUpperCase());
+}
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -115,7 +131,7 @@ export class ItemBuilder {
     const seen = new Set<string>(spellNameToItemId.keys());
     const folderId = await getSpellFolder();
 
-    const register = async (name: string) => {
+    const register = async (name: string, pathname: string) => {
       const key = name.toLowerCase();
       if (seen.has(key)) return;
       seen.add(key);
@@ -124,7 +140,8 @@ export class ItemBuilder {
         spellNameToItemId.set(key, packUuid);
         return;
       }
-      const { id } = await getOrCreateWorldSpellItem(name, undefined, folderId);
+      const parsed = await fetchSpellPage(pathname, name);
+      const { id } = await getOrCreateWorldSpellItem(parsed?.name ?? name, parsed, folderId);
       if (id) spellNameToItemId.set(key, `Item.${id}`);
     };
 
@@ -148,9 +165,9 @@ export class ItemBuilder {
 
           // Register under display text (canonical name) and slug-derived name.
           // rewriteLinks tries nameFromSlug first then text, so both keys are needed.
-          if (nameFromText) await register(nameFromText);
+          if (nameFromText) await register(nameFromText, pathname);
           if (nameFromSlug && nameFromSlug.toLowerCase() !== nameFromText.toLowerCase()) {
-            await register(nameFromSlug);
+            await register(nameFromSlug, pathname);
           }
         }
       }
@@ -158,26 +175,32 @@ export class ItemBuilder {
   }
 
   /**
-   * Resolve the /magic-items/ and /equipment/ links of all chapters to compendium items,
-   * keyed by link path. Lookup only: nothing is created for items no compendium has.
+   * Resolve the /magic-items/ and /equipment/ links of all chapters, keyed by link path.
+   * Items a compendium has are linked there; everything else is imported from its D&D Beyond
+   * page into "Items > dndBeyond > Items", so journals do not have to link back to D&D Beyond.
    */
-  static async findItemLinks(chapters: ParsedChapter[]): Promise<Map<string, string>> {
+  static async importItemLinks(
+    chapters: ParsedChapter[],
+    onProgress?: ProgressFn,
+  ): Promise<Map<string, string>> {
     const result = new Map<string, string>();
 
-    // lowercased item name → UUID, in pack priority order
+    // loose item name → UUID, in pack priority order
     const byName = new Map<string, string>();
     for (const pack of resolvedSpellPackList()) {
       try {
         for (const entry of (await pack.getIndex()) as Iterable<any>) {
-          const key = entry.name?.toLowerCase();
-          if (key && !byName.has(key))
+          const key = looseName(entry.name ?? '');
+          if (key && entry.type !== 'spell' && !byName.has(key)) {
             byName.set(key, `Compendium.${pack.collection}.Item.${entry._id}`);
+          }
         }
       } catch {
         // skip unavailable/broken packs
       }
     }
 
+    let folderId: string | null | undefined;
     for (const chapter of chapters) {
       for (const page of chapter.pages) {
         const doc = new DOMParser().parseFromString(page.content, 'text/html');
@@ -193,15 +216,24 @@ export class ItemBuilder {
           const slug = pathname.split('/').filter(Boolean).pop() ?? '';
           const name = slug.replace(/^\d+-/, '').replace(/-/g, ' ');
           const words = name.split(' ');
+          const text = a.textContent?.trim() ?? '';
           const candidates = [
             name,
             name.replace(/ (\d)$/, ' +$1'), // "longsword 1" → "Longsword +1"
-            name.replace(/ (\d)$/, ', +$1'), // … or "Longsword, +1"
             [...words.slice(1), words[0]].join(' '), // "crossbow light" → "Light Crossbow"
-            a.textContent?.trim().toLowerCase() ?? '',
+            text,
+            text.replace(/s$/, ''), // "daggers" → "Dagger"
           ];
-          const uuid = candidates.map((c) => byName.get(c)).find(Boolean);
-          if (uuid) result.set(pathname, uuid);
+          const packUuid = candidates.map((c) => byName.get(looseName(c))).find(Boolean);
+          if (packUuid) {
+            result.set(pathname, packUuid);
+            continue;
+          }
+
+          onProgress?.(`Importing item: ${displayName(name)}…`);
+          folderId ??= await importFolder('Item', 'Items');
+          const id = await importItemPage(pathname, displayName(name), folderId);
+          if (id) result.set(pathname, `Item.${id}`);
         }
       }
     }
@@ -278,13 +310,13 @@ async function getOrCreateWorldSpellItem(
   parsed: ParsedSpell | undefined,
   folderId: string | null,
 ): Promise<{ id: string; isNew: boolean }> {
-  const nameLower = name.toLowerCase();
+  const nameLower = looseName(name);
 
   // Reuse existing world spell in the folder (or anywhere if no folder)
   const existing = (game.items as any)?.find(
     (i: any) =>
       i.type === 'spell' &&
-      i.name.toLowerCase() === nameLower &&
+      looseName(i.name) === nameLower &&
       (folderId ? i.folder?.id === folderId : true),
   ) as any;
   if (existing) return { id: existing.id, isNew: false };
@@ -326,7 +358,7 @@ async function getOrCreateWorldSpellItem(
   }
 
   const data: Record<string, unknown> = {
-    name,
+    name: displayName(name),
     type: 'spell',
     folder: folderId,
     ...(img ? { img } : {}),
@@ -358,38 +390,52 @@ async function getOrCreateWorldSpellItem(
   }
 }
 
-// ── Spell folder ("Items > dndBeyond > Spells") ───────────────────────────────
+// ── Item pages ────────────────────────────────────────────────────────────────
 
-async function getSpellFolder(): Promise<string | null> {
-  if (_spellFolderId !== undefined) return _spellFolderId;
-  _spellFolderId = await getOrCreateSpellFolder();
-  return _spellFolderId;
-}
-
-async function getOrCreateSpellFolder(): Promise<string | null> {
+/** Create a world item from a D&D Beyond item page; an item of that name in the folder is reused. */
+async function importItemPage(
+  pathname: string,
+  fallbackName: string,
+  folderId: string | null,
+): Promise<string | null> {
   try {
-    let parent = (game.folders as any)?.find(
-      (f: any) => f.type === 'Item' && f.name === 'dndBeyond' && !f.folder,
-    ) as any;
-    if (!parent) {
-      parent = await (Folder as any).create({ name: 'dndBeyond', type: 'Item' });
-    }
+    const html = await BeyondFetcher.fetchPage(`https://www.dndbeyond.com${pathname}`);
+    const parsed = parseItemPage(new DOMParser().parseFromString(html, 'text/html'), fallbackName);
+    if (!parsed) return null;
 
-    const parentId = parent?.id;
-    let spellSub = (game.folders as any)?.find(
-      (f: any) => f.type === 'Item' && f.name === 'Spells' && f.folder?.id === parentId,
-    ) as any;
-    if (!spellSub) {
-      spellSub = await (Folder as any).create({
-        name: 'Spells',
-        type: 'Item',
-        folder: parentId ?? null,
-      });
+    const existing = (game.items as any)?.find(
+      (i: any) =>
+        (i.folder?.id ?? null) === folderId && looseName(i.name) === looseName(parsed.name),
+    );
+    if (existing) return existing.id;
+
+    const data = buildItemData(parsed);
+    if (parsed.imageUrl) {
+      const slug = pathname.split('/').filter(Boolean).pop() ?? fallbackName;
+      data.img = await ImageStore.store(`items/${slug}`, 'image', parsed.imageUrl);
     }
-    return spellSub?.id ?? null;
-  } catch {
+    const item = await (Item as any).create({ ...data, folder: folderId });
+    return item?.id ?? null;
+  } catch (err: any) {
+    console.warn(`[bbp] could not import item ${pathname}:`, err?.message);
     return null;
   }
+}
+
+/** Spell data from the spell's own D&D Beyond page, for spells no compendium has. */
+async function fetchSpellPage(pathname: string, name: string): Promise<ParsedSpell | undefined> {
+  try {
+    const html = await BeyondFetcher.fetchPage(`https://www.dndbeyond.com${pathname}`);
+    return SpellParser.parseSpellPage(new DOMParser().parseFromString(html, 'text/html'), name);
+  } catch {
+    return undefined; // the spell is still created, from its name only
+  }
+}
+
+// ── Spell folder ("Items > dndBeyond > Spells") ───────────────────────────────
+
+function getSpellFolder(): Promise<string | null> {
+  return importFolder('Item', 'Spells');
 }
 
 // ── Compendium lookup ─────────────────────────────────────────────────────────
@@ -420,12 +466,12 @@ function resolvedSpellPackList(): any[] {
 }
 
 async function findSpellInPacks(spellName: string): Promise<string | null> {
-  const nameLower = spellName.toLowerCase();
+  const nameLower = looseName(spellName);
   const ordered = resolvedSpellPackList();
   for (const pack of ordered) {
     try {
       const index = await pack.getIndex();
-      const entry = (index as any).find((e: any) => e.name?.toLowerCase() === nameLower);
+      const entry = (index as any).find((e: any) => looseName(e.name ?? '') === nameLower);
       if (entry) return `Compendium.${pack.collection}.Item.${entry._id}`;
     } catch {
       // skip unavailable/broken packs
@@ -436,12 +482,12 @@ async function findSpellInPacks(spellName: string): Promise<string | null> {
 
 async function findSpellInCompendium(name: string): Promise<Record<string, unknown> | null> {
   if (!(game.packs as any)?.contents) return null;
-  const nameLower = name.toLowerCase();
+  const nameLower = looseName(name);
 
   for (const pack of resolvedSpellPackList()) {
     try {
       const index = await pack.getIndex();
-      const entry = (index as any).find((e: any) => e.name?.toLowerCase() === nameLower);
+      const entry = (index as any).find((e: any) => looseName(e.name ?? '') === nameLower);
       if (!entry) continue;
       const doc = (await pack.getDocument(entry._id)) as any;
       if (doc?.type === 'spell') return doc.toObject();

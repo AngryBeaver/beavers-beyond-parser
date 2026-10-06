@@ -1,5 +1,6 @@
-import { ParsedChapter } from '../types.js';
+import { ParsedChapter, ProgressFn } from '../types.js';
 import { ImageStore } from './ImageStore.js';
+import { importFolder } from './ImportFolders.js';
 
 interface JournalData {
   journalId: string;
@@ -25,7 +26,7 @@ export interface JournalBuildOptions {
   itemPathToUuid?: Map<string, string>;
   /** Folder below `beyond/` the journal images are copied to; images stay remote when omitted. */
   imageEntity?: string;
-  onProgress?: (msg: string) => void;
+  onProgress?: ProgressFn;
 }
 
 const DDB_ORIGIN = 'https://www.dndbeyond.com';
@@ -41,6 +42,7 @@ export class JournalBuilder {
     const folder = (await Folder.create({
       name: adventureTitle,
       type: 'JournalEntry',
+      folder: await importFolder('JournalEntry'),
       color: '#5b4a2e',
     })) as Folder;
 
@@ -105,7 +107,11 @@ export class JournalBuilder {
           currentChapterData: chapterData,
         });
         if (imageEntity) {
-          onProgress?.(`Copying images: ${chapter.title} — ${page.name}…`);
+          onProgress?.(
+            `Copying images: ${chapter.title} — ${page.name}…`,
+            (created.findIndex((c) => c.chapter === chapter) + i / chapter.pages.length) /
+              created.length,
+          );
           content = await ImageStore.localizeHtml(content, imageEntity, imageClaims);
         }
         pages.push({
@@ -116,7 +122,8 @@ export class JournalBuilder {
           text: { content, format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML },
         });
       }
-      await JournalEntryPage.createDocuments(pages, { parent: journal });
+      // keepId: the links written above point at the pre-generated page ids
+      await JournalEntryPage.createDocuments(pages, { parent: journal, keepId: true });
     }
 
     const totalPages = created.reduce((sum, { chapter }) => sum + chapter.pages.length, 0);

@@ -13,9 +13,21 @@ REJECT — Different abilities entirely, OR one description has an effect, condi
 
 When in doubt, return REJECT.`;
 
-const ICON_SYSTEM = `You are a D&D 5e Foundry VTT expert. Given an item name and description, pick the single best matching icon from the list below.
-Each line is a slash-separated path without extension. Return ONLY that exact path (e.g. weapons/swords/longsword).
-Return exactly "miss" if no icon fits well. No other text.`;
+// The icon library has ~7000 entries. Offering all of them at once costs tens of thousands of
+// tokens per item, so the search runs in two small steps: pick a folder, then an icon in it.
+// The lists sit in the system prompt and the item comes last, so the model server can reuse
+// the list prefix between items.
+const ICON_FOLDER_SYSTEM = `You are a D&D 5e Foundry VTT expert. Given an item name and description, pick the icon folder most likely to contain a fitting icon.
+Return ONLY one folder path exactly as listed. Return exactly "miss" if no folder fits. No other text.
+
+Folders:
+`;
+
+const ICON_FILE_SYSTEM = `You are a D&D 5e Foundry VTT expert. Given an item name and description, pick the single best matching icon.
+Return ONLY one icon name exactly as listed. Return exactly "miss" if no icon fits well. No other text.
+
+Icons:
+`;
 
 const PATCH_SYSTEM = `You are a D&D 5e Foundry VTT expert.
 You will receive a Foundry Item data object (JSON) and a target description.
@@ -35,7 +47,7 @@ function aiService(): {
 // ── Icon index cache ──────────────────────────────────────────────────────────
 
 let _iconPaths: string[] | null = null;
-let _iconPromptCache: Map<string, string> | null = null;
+let _iconFolders: Map<string, string[]> | null = null;
 
 async function loadIconPaths(): Promise<string[]> {
   if (_iconPaths) return _iconPaths;
@@ -63,19 +75,29 @@ const ICON_CATEGORIES: Record<string, string[]> = {
   save: ['skills/', 'environment/', 'magic/'],
 };
 
-function buildPromptList(paths: string[], itemType?: string): string {
-  const cacheKey = itemType ?? '__all__';
-  if (!_iconPromptCache) _iconPromptCache = new Map();
-  if (_iconPromptCache.has(cacheKey)) return _iconPromptCache.get(cacheKey)!;
+/** Icon paths grouped by folder ("magic/fire" → its icons). */
+function iconFolders(paths: string[]): Map<string, string[]> {
+  if (_iconFolders) return _iconFolders;
+  _iconFolders = new Map();
+  for (const path of paths) {
+    const cut = path.lastIndexOf('/');
+    if (cut < 0) continue; // loose files at the top level are logos, not item icons
+    const folder = path.slice(0, cut);
+    if (!_iconFolders.has(folder)) _iconFolders.set(folder, []);
+    _iconFolders.get(folder)!.push(path);
+  }
+  return _iconFolders;
+}
 
-  const prefixes = itemType ? (ICON_CATEGORIES[itemType] ?? null) : null;
-  const filtered = prefixes
-    ? paths.filter((p) => prefixes.some((pre) => p.startsWith(pre)))
-    : paths;
+const stem = (path: string): string =>
+  path.slice(path.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '');
 
-  const result = filtered.map((p) => p.replace(/\.[^.]+$/, '')).join('\n');
-  _iconPromptCache.set(cacheKey, result);
-  return result;
+/** The model's answer as one clean line: no quotes, backslashes or trailing punctuation. */
+function cleanAnswer(content: string): string {
+  return (content.trim().split('\n')[0] ?? '')
+    .replace(/\\/g, '/')
+    .replace(/^["'`\s]+|["'`\s.]+$/g, '')
+    .toLowerCase();
 }
 
 export const AiLookup = {
@@ -126,30 +148,50 @@ export const AiLookup = {
     if (!svc) return null;
     const paths = await loadIconPaths();
     if (paths.length === 0) return null;
-    const listText = buildPromptList(paths, itemType);
-    const userPrompt = `Item: ${name}\nDescription: ${description}\n\nAvailable icons:\n${listText}`;
-    stats.calls++;
+
+    const prefixes = itemType ? (ICON_CATEGORIES[itemType] ?? null) : null;
+    const folders = [...iconFolders(paths).keys()].filter(
+      (f) => !prefixes || prefixes.some((pre) => f.startsWith(pre)),
+    );
+    const item = `Item: ${name}\nDescription: ${description}`;
+    const miss = (reason?: string): null => {
+      if (reason) console.warn(`[bbp] AI slop: ${reason}`);
+      stats.iconMiss++;
+      return null;
+    };
+
     try {
-      const { content } = await svc.call(ICON_SYSTEM, userPrompt, {
-        max_tokens: 80,
-        temperature: 0,
-      });
-      const raw = content
-        .trim()
-        .replace(/\\/g, '/')
-        .replace(/\.[^.]+$/, '');
-      if (!raw || raw.toLowerCase() === 'miss') {
-        stats.iconMiss++;
-        return null;
-      }
-      // Verify the stem exists in the index and resolve the full path with extension
-      const lower = raw.toLowerCase();
-      const match = paths.find((p) => p.replace(/\.[^.]+$/, '').toLowerCase() === lower);
-      if (!match) {
-        console.warn(`[bbp] AI slop: hallucinated icon path "${raw}"`);
-        stats.iconMiss++;
-        return null;
-      }
+      // Step 1: folder
+      stats.calls++;
+      const folderAnswer = cleanAnswer(
+        (
+          await svc.call(ICON_FOLDER_SYSTEM + folders.join('\n'), item, {
+            max_tokens: 30,
+            temperature: 0,
+          })
+        ).content,
+      );
+      if (!folderAnswer || folderAnswer === 'miss') return miss();
+      const folder = folders.find((f) => f.toLowerCase() === folderAnswer.replace(/\/$/, ''));
+      if (!folder) return miss(`unknown icon folder "${folderAnswer}" for "${name}"`);
+
+      // Step 2: icon inside that folder
+      const files = iconFolders(paths).get(folder)!;
+      stats.calls++;
+      const fileAnswer = cleanAnswer(
+        (
+          await svc.call(ICON_FILE_SYSTEM + files.map(stem).join('\n'), item, {
+            max_tokens: 40,
+            temperature: 0,
+          })
+        ).content,
+      );
+      if (!fileAnswer || fileAnswer === 'miss') return miss();
+      // tolerate an answer that repeats the folder or the extension
+      const wanted = stem(fileAnswer);
+      const match = files.find((f) => stem(f).toLowerCase() === wanted);
+      if (!match) return miss(`unknown icon "${fileAnswer}" in ${folder} for "${name}"`);
+
       stats.iconSuggest++;
       return `icons/${match}`;
     } catch (err) {

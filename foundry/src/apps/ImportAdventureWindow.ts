@@ -1,11 +1,5 @@
 import { NAMESPACE, SETTINGS } from '../definitions.js';
-import { BeyondFetcher } from '../modules/BeyondFetcher.js';
-import { BeyondParser } from '../modules/BeyondParser.js';
-import { ItemBuilder } from '../modules/ItemBuilder.js';
-import { JournalBuilder } from '../modules/JournalBuilder.js';
-import { sourceEntity } from '../modules/ImageStore.js';
-import { NpcBuilder } from '../modules/monsterBuilder/index.js';
-import { ParsedChapter } from '../types.js';
+import { importAdventure } from '../modules/AdventureImporter.js';
 import { AiLookup } from '../modules/AiLookup.js';
 import { estimateCost } from '../modules/AiCostEstimate.js';
 
@@ -64,6 +58,30 @@ export class ImportAdventureWindow extends (foundry.applications.api.HandlebarsA
     return super.close(options);
   }
 
+  private _importing = false;
+
+  /** While an import runs the button is replaced by a progress bar, so it cannot be started twice. */
+  private _setImporting(importing: boolean): void {
+    this._importing = importing;
+    const root = this.element as HTMLElement | undefined;
+    root
+      ?.querySelector<HTMLElement>('[data-action="import"]')
+      ?.toggleAttribute('hidden', importing);
+    root?.querySelector<HTMLElement>('.bbp-progress')?.toggleAttribute('hidden', !importing);
+    const input = root?.querySelector<HTMLInputElement>('.bbp-url-input');
+    if (input) input.disabled = importing;
+    if (importing) this._setProgress(0);
+  }
+
+  private _setProgress(fraction: number): void {
+    const pct = Math.max(0, Math.min(100, Math.floor(fraction * 100)));
+    const root = this.element as HTMLElement | undefined;
+    const bar = root?.querySelector<HTMLProgressElement>('.bbp-progress progress');
+    if (bar) bar.value = pct;
+    const label = root?.querySelector('.bbp-progress-pct');
+    if (label) label.textContent = `${pct}%`;
+  }
+
   private _setStatus(msg: string): void {
     const el = this.element?.querySelector('.bbp-status');
     if (el) el.textContent = msg;
@@ -73,47 +91,15 @@ export class ImportAdventureWindow extends (foundry.applications.api.HandlebarsA
     const url = (this.element.querySelector('.bbp-url-input') as HTMLInputElement).value.trim();
     if (!url) return void ui.notifications?.warn('Enter a D&D Beyond adventure URL first.');
 
-    this._setStatus('Fetching adventure…');
+    if (this._importing) return;
+    this._setImporting(true);
     try {
-      const tocHtml = await BeyondFetcher.fetchPage(url);
-      const adventure = BeyondParser.parseToc(tocHtml, url);
-      this._setStatus(
-        `Found "${adventure.title}" — fetching ${adventure.chapterStubs.length} chapter(s)…`,
-      );
-
-      const chapters: ParsedChapter[] = [];
-      for (const stub of adventure.chapterStubs) {
-        this._setStatus(`Fetching: ${stub.title}…`);
-        try {
-          const html = await BeyondFetcher.fetchPage(stub.url);
-          chapters.push(BeyondParser.parseChapter(html));
-        } catch (err: any) {
-          ui.notifications?.warn(`Skipped "${stub.title}": ${err.message}`);
-        }
-      }
-
-      if (chapters.length === 0) {
-        return void this._setStatus('No chapters fetched.');
-      }
-
-      this._setStatus('Building actors…');
-      const { monsterPathToActorId, spellNameToItemId, aiStats, actorsCreated } =
-        await NpcBuilder.build(chapters, (msg) => this._setStatus(msg));
-      this._setStatus('Importing spells from journal links…');
-      await ItemBuilder.importSpellsFromChapters(chapters, spellNameToItemId);
-      const itemPathToUuid = await ItemBuilder.findItemLinks(chapters);
-      this._setStatus('Building journals…');
-      const { journals, pages } = await JournalBuilder.build(
-        adventure.title,
-        chapters,
-        monsterPathToActorId,
-        spellNameToItemId,
-        {
-          itemPathToUuid,
-          imageEntity: sourceEntity(url, adventure.title),
-          onProgress: (msg) => this._setStatus(msg),
+      const { chapters, journals, pages, actorsCreated, aiStats } = await importAdventure(url, {
+        onProgress: (msg, fraction) => {
+          this._setStatus(msg);
+          if (fraction !== undefined) this._setProgress(fraction);
         },
-      );
+      });
 
       const iconPart =
         aiStats.iconSuggest + aiStats.iconMiss > 0
@@ -124,11 +110,13 @@ export class ImportAdventureWindow extends (foundry.applications.api.HandlebarsA
           ? ` | AI: ${aiStats.calls} calls, ${aiStats.match} semantic match, ${aiStats.patch} patched${iconPart}`
           : '';
       this._setStatus(
-        `Done — ${chapters.length} chapter(s), ${journals} journal(s), ${pages} page(s), ${actorsCreated} actor(s)${aiPart}.`,
+        `Done — ${chapters} chapter(s), ${journals} journal(s), ${pages} page(s), ${actorsCreated} actor(s)${aiPart}.`,
       );
     } catch (err: any) {
       this._setStatus(`Error: ${err.message}`);
       ui.notifications?.error(`Import failed: ${err.message}`);
+    } finally {
+      this._setImporting(false);
     }
   }
 }

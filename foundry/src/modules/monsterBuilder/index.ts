@@ -1,4 +1,4 @@
-import { ParsedChapter, ParsedStatBlock } from '../../types.js';
+import { ParsedChapter, ParsedStatBlock, ProgressFn } from '../../types.js';
 import { BeyondFetcher } from '../BeyondFetcher.js';
 import { ItemBuilder } from '../ItemBuilder.js';
 import { AiStats } from '../CompendiumLookup.js';
@@ -44,7 +44,7 @@ export class NpcBuilder {
    */
   static async build(
     chapters: ParsedChapter[],
-    onProgress?: (msg: string) => void,
+    onProgress?: ProgressFn,
   ): Promise<{
     monsterPathToActorId: Map<string, string>;
     spellNameToItemId: Map<string, string>;
@@ -91,8 +91,13 @@ export class NpcBuilder {
     const dndBeyondFolderId = await findOrCreateDndBeyondActorFolder();
     const pendingCreations: Array<{ originalHref: string; sb: ParsedStatBlock }> = [];
 
+    // Looking the monsters up is the first fifth of this step, building them the rest.
+    let looked = 0;
     for (const [monsterHref, name] of monsterRefMap) {
-      onProgress?.(`Building actors: ${name}: checking packs…`);
+      onProgress?.(
+        `Building actors: ${name}: checking packs…`,
+        (looked++ / monsterRefMap.size) * 0.2,
+      );
       const packUuid = await findInPacks(name);
       if (packUuid) {
         monsterPathToActorId.set(monsterHref, packUuid);
@@ -124,18 +129,16 @@ export class NpcBuilder {
     const totalActors = pendingCreations.length;
     for (let i = 0; i < totalActors; i++) {
       const { originalHref, sb } = pendingCreations[i];
-      const pct = Math.round((i / totalActors) * 100);
-      const progressWithPct = onProgress
-        ? (msg: string) => onProgress(`${msg} [${pct}%]`)
-        : undefined;
-      onProgress?.(`Building actors: ${sb.name}… [${pct}%]`);
+      const fraction = 0.2 + (i / totalActors) * 0.8;
+      const itemProgress = onProgress ? (msg: string) => onProgress(msg, fraction) : undefined;
+      onProgress?.(`Building actors: ${sb.name}…`, fraction);
       await localizeImages(sb, originalHref);
       const actor = (await Actor.create(
         (await buildActorData(
           sb,
           dndBeyondFolderId,
           spellNameToItemId,
-          progressWithPct,
+          itemProgress,
           aiStats,
         )) as any,
       )) as Actor | null | undefined;

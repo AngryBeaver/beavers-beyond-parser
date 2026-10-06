@@ -3,6 +3,8 @@ import { ImportAdventureWindow } from './apps/ImportAdventureWindow.js';
 import { ImportMonsterWindow } from './apps/ImportMonsterWindow.js';
 import { ImportItemWindow } from './apps/ImportItemWindow.js';
 import { NpcBuilder } from './modules/monsterBuilder/index.js';
+import { ImageStore } from './modules/ImageStore.js';
+import { importAdventure } from './modules/AdventureImporter.js';
 
 Hooks.once('init', () => {
   game.settings.register(NAMESPACE, SETTINGS.PROXY_URL, {
@@ -45,7 +47,7 @@ Hooks.once('ready', () => {
   console.log(`${NAMESPACE} | Ready`);
 
   // Expose API for other modules (e.g. beavers-ai-assistant socket bridge).
-  (game as any)[NAMESPACE] = { NpcBuilder };
+  (game as any)[NAMESPACE] = { NpcBuilder, ImageStore, importAdventure };
 
   const aiEnabled = game.settings.get(NAMESPACE, SETTINGS.AI_SUPPORT_ENABLED) as boolean;
   if (aiEnabled) {

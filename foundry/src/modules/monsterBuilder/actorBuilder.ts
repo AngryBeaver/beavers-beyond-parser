@@ -4,6 +4,7 @@ import { parseMovement, parseSenses, parseSkills } from './statParser.js';
 import { parseTraits } from './traitParser.js';
 import { buildItems } from './itemsBuilder.js';
 import { cleanFormula, parseCr } from './helpers.js';
+import { importFolder } from '../ImportFolders.js';
 
 /** dnd5e 6.0 moved the movement speeds from `movement.walk` etc. into `movement.speeds`. */
 function movementData(speeds: Record<string, number>): Record<string, unknown> {
@@ -79,15 +80,5 @@ export async function findInPacks(monsterName: string): Promise<string | null> {
 }
 
 export async function findOrCreateDndBeyondActorFolder(): Promise<string | null> {
-  try {
-    let folder = (game.folders as any)?.find(
-      (f: any) => f.type === 'Actor' && f.name === 'dndbeyond' && !f.folder,
-    ) as any;
-    if (!folder) {
-      folder = await (Folder as any).create({ name: 'dndbeyond', type: 'Actor' });
-    }
-    return folder?.id ?? null;
-  } catch {
-    return null;
-  }
+  return importFolder('Actor');
 }
